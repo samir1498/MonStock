@@ -97,7 +97,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                         tag(ui, &e.category, ACCENT);
                         ui.label(egui::RichText::new(e.description.as_deref().unwrap_or("-")).size(13.0).color(TEXT_SEC));
                         amount_text(ui, &format!("{:.0} DA", e.amount), BAD);
-                        let d = ui.add(egui::Button::new(egui::RichText::new("X").size(10.0).color(TEXT_DIM)).fill(egui::Color32::TRANSPARENT).min_size(egui::vec2(20.0, 20.0)));
+                        let d = btn_custom(ui, egui::Button::new(egui::RichText::new("X").size(10.0).color(TEXT_DIM)).fill(egui::Color32::TRANSPARENT).min_size(egui::vec2(20.0, 20.0)));
                         if d.clicked() { state.delete(conn, e.id); }
                         ui.end_row();
                     }
@@ -144,9 +144,9 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 if let Some(ref err) = state.form_error { ui.colored_label(BAD, err); ui.add_space(4.0); }
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button(i18n::t("save", lang)).clicked() { state.save(conn); }
+                        if btn(ui, i18n::t("save", lang)).clicked() { state.save(conn); }
                         ui.add_space(8.0);
-                        if ui.button(i18n::t("cancel", lang)).clicked() { state.close_modal(); }
+                        if btn(ui, i18n::t("cancel", lang)).clicked() { state.close_modal(); }
                     });
                 });
             });

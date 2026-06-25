@@ -132,7 +132,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                             let sc = if p.quantity_on_hand <= 5 { BAD } else { TEXT_SEC };
                             mono_value(ui, &format!("{}", p.quantity_on_hand), sc);
                             amount_text(ui, &format!("{:.0} DA", p.selling_price), TEXT);
-                            if ui.add(egui::Button::new(egui::RichText::new("+").color(TEXT)).fill(ACCENT).corner_radius(4).min_size(egui::vec2(24.0, 20.0))).clicked() {
+                            if btn_custom(ui, egui::Button::new(egui::RichText::new("+").color(TEXT)).fill(ACCENT).corner_radius(4).min_size(egui::vec2(24.0, 20.0))).clicked() {
                                 state.add_item(p.id, &p.name, p.selling_price, p.cost_price);
                             }
                             ui.end_row();
@@ -156,7 +156,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                             ui.label(egui::RichText::new(&item.product_name).size(13.0));
                             ui.add(egui::TextEdit::singleline(&mut item.quantity).desired_width(50.0));
                             ui.add(egui::TextEdit::singleline(&mut item.selling_price).desired_width(60.0));
-                            let r = ui.add(egui::Button::new(egui::RichText::new("X").size(12.0).color(TEXT_DIM)).fill(egui::Color32::TRANSPARENT).min_size(egui::vec2(20.0, 20.0)));
+                            let r = btn_custom(ui, egui::Button::new(egui::RichText::new("X").size(12.0).color(TEXT_DIM)).fill(egui::Color32::TRANSPARENT).min_size(egui::vec2(20.0, 20.0)));
                             if r.clicked() { remove_idx = Some(idx); }
                             ui.end_row();
                         }
@@ -168,9 +168,9 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 if let Some(ref err) = state.form_error { ui.colored_label(BAD, err); ui.add_space(4.0); }
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button(i18n::t("save", lang)).clicked() { state.save(conn); }
+                        if btn(ui, i18n::t("save", lang)).clicked() { state.save(conn); }
                         ui.add_space(8.0);
-                        if ui.button(i18n::t("cancel", lang)).clicked() { state.close_modal(); }
+                        if btn(ui, i18n::t("cancel", lang)).clicked() { state.close_modal(); }
                     });
                 });
             });

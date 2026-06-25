@@ -8,20 +8,80 @@ impl Default for DashboardState {
     fn default() -> Self { Self }
 }
 
-fn stat_card(ui: &mut egui::Ui, label: &str, value: &str, val_color: egui::Color32, _is_dark: bool) {
+enum ActivityType {
+    Sale { title: String, time: String, amount: f64 },
+    Expense { category: String, time: String, amount: f64 },
+}
+
+fn stat_card(ui: &mut egui::Ui, label: &str, value: &str, val_color: egui::Color32, delta: f64, delta_is_percentage: bool) {
     let frame = egui::Frame::new()
         .fill(SURFACE)
         .stroke(egui::Stroke::new(1.0, BORDER))
         .corner_radius(8)
         .inner_margin(egui::Margin::symmetric(18, 16));
     frame.show(ui, |ui| {
-        ui.label(egui::RichText::new(label).size(11.0).color(TEXT_DIM).strong());
+        ui.set_min_width(ui.available_width());
+        ui.label(egui::RichText::new(label).size(13.0).color(TEXT_DIM).strong());
         ui.add_space(4.0);
-        ui.label(egui::RichText::new(value).size(22.0).color(val_color).strong());
+        ui.label(egui::RichText::new(value).size(26.0).color(val_color).strong());
+        ui.add_space(4.0);
+        
+        if delta_is_percentage {
+            let label_text = if delta >= 0.0 {
+                format!("+{:.1}% vs yesterday", delta)
+            } else {
+                format!("{:.1}% vs yesterday", delta)
+            };
+            let color = if delta >= 0.0 { GOOD } else { BAD };
+            ui.colored_label(color, egui::RichText::new(label_text).size(12.0).monospace());
+        } else {
+            let label_text = if delta >= 0.0 {
+                format!("+{} vs yesterday", delta as i64)
+            } else {
+                format!("{} vs yesterday", delta as i64)
+            };
+            let color = if delta >= 0.0 { GOOD } else { BAD };
+            ui.colored_label(color, egui::RichText::new(label_text).size(12.0).monospace());
+        }
     });
 }
 
-pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, is_dark: bool, _state: &mut DashboardState) {
+fn quick_action(ui: &mut egui::Ui, sigil: &str, title: &str, desc: &str) -> egui::Response {
+    let frame = egui::Frame::new()
+        .fill(SURFACE)
+        .stroke(egui::Stroke::new(1.0, BORDER))
+        .corner_radius(8)
+        .inner_margin(egui::Margin::symmetric(16, 14));
+    
+    let response = frame.show(ui, |ui| {
+        ui.set_min_width(ui.available_width());
+        ui.horizontal(|ui| {
+            egui::Frame::new()
+                .fill(RAISED)
+                .stroke(egui::Stroke::new(1.0, BORDER))
+                .corner_radius(6)
+                .inner_margin(egui::Margin::symmetric(10, 8))
+                .show(ui, |ui| {
+                    ui.label(egui::RichText::new(sigil).size(16.0).strong().monospace());
+                });
+            
+            ui.add_space(8.0);
+            ui.vertical(|ui| {
+                ui.label(egui::RichText::new(title).size(15.0).strong());
+                ui.add_space(2.0);
+                ui.label(egui::RichText::new(desc).size(13.0).color(TEXT_DIM));
+            });
+        });
+    }).response;
+    
+    let res = ui.interact(response.rect, response.id, egui::Sense::click());
+    if res.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    res
+}
+
+pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, is_dark: bool, _state: &mut DashboardState) -> Option<crate::Screen> {
     page_header(ui, "#", i18n::t("dashboard", lang), i18n::t("overview", lang), is_dark);
 
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
@@ -30,72 +90,265 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
     let profit = monstock_core::services::dashboard_service::profit(stats.sales_total, cost_total, stats.expenses_total);
     let low_stock = monstock_core::services::dashboard_service::low_stock_products(conn, 5).unwrap_or_default();
 
-    if !low_stock.is_empty() {
-        let alert_frame = egui::Frame::new()
-            .fill(RAISED)
-            .stroke(egui::Stroke::new(1.0, BORDER))
-            .corner_radius(8)
-            .inner_margin(egui::Margin::symmetric(16, 12));
-        alert_frame.show(ui, |ui| {
-            ui.horizontal(|ui| {
-                egui::Frame::new()
-                    .fill(SURFACE)
+    // yesterday stats for deltas
+    let yesterday = (chrono::Local::now() - chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
+    let stats_yesterday = monstock_core::services::dashboard_service::daily_stats(conn, &yesterday).unwrap_or_default();
+    let cost_yesterday = monstock_core::services::sale_service::daily_cost_total(conn, &yesterday).unwrap_or(0.0);
+    let profit_yesterday = monstock_core::services::dashboard_service::profit(stats_yesterday.sales_total, cost_yesterday, stats_yesterday.expenses_total);
+
+    let sales_pct = if stats_yesterday.sales_total > 0.0 {
+        (stats.sales_total - stats_yesterday.sales_total) / stats_yesterday.sales_total * 100.0
+    } else {
+        0.0
+    };
+
+    let expenses_pct = if stats_yesterday.expenses_total > 0.0 {
+        (stats.expenses_total - stats_yesterday.expenses_total) / stats_yesterday.expenses_total * 100.0
+    } else {
+        0.0
+    };
+
+    let profit_pct = if profit_yesterday != 0.0 {
+        (profit - profit_yesterday) / profit_yesterday.abs() * 100.0
+    } else {
+        0.0
+    };
+
+    let tx_diff = stats.transaction_count - stats_yesterday.transaction_count;
+
+    let mut next_screen = None;
+
+    egui::ScrollArea::vertical()
+        .id_salt("dashboard_scroll")
+        .show(ui, |ui| {
+            ui.add_space(8.0);
+
+            // Alert banner
+            if !low_stock.is_empty() {
+                let alert_frame = egui::Frame::new()
+                    .fill(RAISED)
                     .stroke(egui::Stroke::new(1.0, BORDER))
-                    .corner_radius(6)
-                    .inner_margin(egui::Margin::symmetric(6, 4))
-                    .show(ui, |ui| {
-                        ui.label(egui::RichText::new("!").size(11.0).monospace().color(WARN));
+                    .corner_radius(8)
+                    .inner_margin(egui::Margin::symmetric(16, 12));
+                let resp = alert_frame.show(ui, |ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.horizontal(|ui| {
+                        egui::Frame::new()
+                            .fill(SURFACE)
+                            .stroke(egui::Stroke::new(1.0, BORDER))
+                            .corner_radius(6)
+                            .inner_margin(egui::Margin::symmetric(6, 4))
+                            .show(ui, |ui| {
+                                ui.label(egui::RichText::new("!").size(13.0).monospace().color(WARN));
+                            });
+                        ui.add_space(8.0);
+                        ui.label(egui::RichText::new(
+                            format!("{} {} {}", low_stock.len(), i18n::t("items", lang), i18n::t("low_stock", lang))
+                        ).size(14.0).strong());
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.colored_label(TEXT_DIM, egui::RichText::new("View inventory →").size(13.0));
+                        });
                     });
-                ui.add_space(8.0);
-                ui.label(egui::RichText::new(
-                    format!("{} {} {}", low_stock.len(), i18n::t("items", lang), i18n::t("low_stock", lang))
-                ).size(12.5).strong());
+                }).response;
+                
+                let sense = ui.interact(resp.rect, resp.id, egui::Sense::click());
+                if sense.hovered() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+                if sense.clicked() {
+                    next_screen = Some(crate::Screen::Products);
+                }
+                ui.add_space(16.0);
+            }
+
+            // Stats row (4 horizontal cards)
+            ui.columns(4, |cols| {
+                stat_card(&mut cols[0], i18n::t("sales", lang), &format!("{:.0} DA", stats.sales_total), GOOD, sales_pct, true);
+                stat_card(&mut cols[1], i18n::t("transactions", lang), &format!("{}", stats.transaction_count), ACCENT, tx_diff as f64, false);
+                stat_card(&mut cols[2], i18n::t("expenses", lang), &format!("{:.0} DA", stats.expenses_total), BAD, expenses_pct, true);
+                stat_card(&mut cols[3], i18n::t("profit", lang), &format!("{:.0} DA", profit), if profit >= 0.0 { GOOD } else { BAD }, profit_pct, true);
+            });
+
+            ui.add_space(20.0);
+
+            // Left / Right columns
+            ui.columns(2, |cols| {
+                // Chart column (Sales by Hour)
+                cols[0].vertical(|ui| {
+                    ui.label(egui::RichText::new("Sales by Hour").size(16.0).strong());
+                    ui.add_space(8.0);
+                    
+                    card(ui, is_dark, |ui| {
+                        ui.set_min_width(ui.available_width());
+                        ui.add_space(8.0);
+                        
+                        // group sales by hour
+                        let txs = monstock_core::services::sale_service::find_transactions_by_date(conn, &today).unwrap_or_default();
+                        let mut hourly_sales = vec![0.0f64; 24];
+                        for tx in &txs {
+                            if let Some(time_part) = tx.timestamp.split('T').nth(1) {
+                                if let Some(hour_str) = time_part.split(':').next() {
+                                    if let Ok(hour) = hour_str.parse::<usize>() {
+                                        if hour < 24 {
+                                            hourly_sales[hour] += tx.total;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 8.0;
+                            let max_amount = hourly_sales.iter().cloned().fold(0.0, f64::max);
+                            
+                            for hr in 8..20 {
+                                let amount = hourly_sales[hr];
+                                ui.vertical(|ui| {
+                                    let pct = if max_amount > 0.0 { (amount / max_amount) as f32 } else { 0.0 };
+                                    let bar_height = 100.0 * pct;
+                                    
+                                    let (rect, _) = ui.allocate_exact_size(egui::vec2(16.0, 100.0), egui::Sense::hover());
+                                    let p = ui.painter();
+                                    p.rect_filled(rect, egui::CornerRadius::same(3), RAISED);
+                                    
+                                    if bar_height > 0.0 {
+                                        let fill_rect = egui::Rect::from_min_max(
+                                            egui::pos2(rect.left(), rect.bottom() - bar_height),
+                                            rect.max
+                                        );
+                                        p.rect_filled(fill_rect, egui::CornerRadius::same(3), ACCENT);
+                                    }
+                                    
+                                    ui.add_space(4.0);
+                                    ui.colored_label(TEXT_DIM, egui::RichText::new(format!("{:02}", hr)).size(11.0).monospace());
+                                });
+                            }
+                        });
+                    });
+                });
+                
+                // Recent Activity column
+                cols[1].vertical(|ui| {
+                    ui.label(egui::RichText::new("Recent Activity").size(16.0).strong());
+                    ui.add_space(8.0);
+                    
+                    card(ui, is_dark, |ui| {
+                        ui.set_min_width(ui.available_width());
+                        
+                        // fetch activities
+                        let txs = monstock_core::services::sale_service::find_transactions_by_date(conn, &today).unwrap_or_default();
+                        let exps = monstock_core::repos::expense_repo::find_expenses_by_date_range(conn, &today, &today).unwrap_or_default();
+                        
+                        let mut activities = Vec::new();
+                        for tx in txs {
+                            let items = monstock_core::services::sale_service::find_items_by_transaction(conn, tx.id).unwrap_or_default();
+                            let title = if items.is_empty() {
+                                "Sale".to_string()
+                            } else if items.len() == 1 {
+                                format!("Sale — {}", items[0].product_name)
+                            } else {
+                                format!("Sale — {} items", items.len())
+                            };
+                            let time = tx.timestamp.split('T').nth(1).unwrap_or("00:00:00").chars().take(5).collect::<String>();
+                            activities.push((tx.timestamp.clone(), ActivityType::Sale { title, time, amount: tx.total }));
+                        }
+                        
+                        for exp in exps {
+                            let time = exp.created_at.split('T').nth(1).unwrap_or("00:00:00").chars().take(5).collect::<String>();
+                            activities.push((exp.created_at.clone(), ActivityType::Expense { category: exp.category, time, amount: exp.amount }));
+                        }
+                        
+                        activities.sort_by(|a, b| b.0.cmp(&a.0));
+                        
+                        if activities.is_empty() {
+                            ui.colored_label(TEXT_DIM, egui::RichText::new("No activity today").size(13.0));
+                        } else {
+                            for (_, act) in activities.iter().take(5) {
+                                ui.horizontal(|ui| {
+                                    match act {
+                                        ActivityType::Sale { title, time, amount } => {
+                                            egui::Frame::new().fill(RAISED).stroke(egui::Stroke::new(1.0, BORDER)).corner_radius(4).inner_margin(4).show(ui, |ui| {
+                                                ui.label(egui::RichText::new("$").size(12.0).color(GOOD).monospace().strong());
+                                            });
+                                            ui.vertical(|ui| {
+                                                ui.label(egui::RichText::new(title).size(14.0).strong());
+                                                ui.label(egui::RichText::new(time).size(12.0).color(TEXT_DIM));
+                                            });
+                                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                                ui.colored_label(GOOD, egui::RichText::new(format!("+{:.0} DA", amount)).size(14.0).monospace().strong());
+                                            });
+                                        }
+                                        ActivityType::Expense { category, time, amount } => {
+                                            egui::Frame::new().fill(RAISED).stroke(egui::Stroke::new(1.0, BORDER)).corner_radius(4).inner_margin(4).show(ui, |ui| {
+                                                ui.label(egui::RichText::new("E").size(12.0).color(BAD).monospace().strong());
+                                            });
+                                            ui.vertical(|ui| {
+                                                ui.label(egui::RichText::new(format!("Expense — {}", category)).size(14.0).strong());
+                                                ui.label(egui::RichText::new(time).size(12.0).color(TEXT_DIM));
+                                            });
+                                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                                ui.colored_label(BAD, egui::RichText::new(format!("-{:.0} DA", amount)).size(14.0).monospace().strong());
+                                            });
+                                        }
+                                    }
+                                });
+                                ui.add_space(4.0);
+                                ui.separator();
+                                ui.add_space(4.0);
+                            }
+                        }
+                    });
+                });
+            });
+
+            ui.add_space(20.0);
+
+            // Quick actions
+            ui.label(egui::RichText::new("Quick Actions").size(16.0).strong());
+            ui.add_space(8.0);
+            
+            ui.columns(3, |cols| {
+                if quick_action(&mut cols[0], "$", "New Sale", "Record a quick sale").clicked() {
+                    next_screen = Some(crate::Screen::Sales);
+                }
+                if quick_action(&mut cols[1], "E", "New Expense", "Add a shop expense").clicked() {
+                    next_screen = Some(crate::Screen::Expenses);
+                }
+                if quick_action(&mut cols[2], "B", "Receive Stock", "Create a purchase order").clicked() {
+                    next_screen = Some(crate::Screen::PurchaseOrders);
+                }
+            });
+
+            ui.add_space(20.0);
+            
+            // Low stock section
+            ui.label(egui::RichText::new(i18n::t("low_stock", lang)).size(16.0).strong());
+            ui.add_space(8.0);
+
+            card(ui, is_dark, |ui| {
+                ui.set_min_width(ui.available_width());
+                if low_stock.is_empty() {
+                    ui.colored_label(TEXT_DIM, egui::RichText::new(i18n::t("all_stocked", lang)).size(14.0));
+                } else {
+                    egui::Grid::new("low_stock_grid")
+                        .striped(true)
+                        .min_col_width(120.0)
+                        .show(ui, |ui| {
+                            ui.strong(i18n::t("name", lang));
+                            ui.strong(i18n::t("stock", lang));
+                            ui.strong(i18n::t("price", lang));
+                            ui.end_row();
+
+                            for p in &low_stock {
+                                ui.label(egui::RichText::new(&p.name).size(14.0));
+                                ui.colored_label(BAD, egui::RichText::new(format!("{}", p.quantity_on_hand)).size(14.0));
+                                ui.label(egui::RichText::new(format!("{:.0} DA", p.selling_price)).size(14.0));
+                                ui.end_row();
+                            }
+                        });
+                }
             });
         });
-        ui.add_space(12.0);
-    }
-
-    ui.label(egui::RichText::new(i18n::t("stats_today", lang)).size(14.0).strong());
-    ui.add_space(8.0);
-
-    card(ui, is_dark, |ui| {
-        egui::Grid::new("stats_grid")
-            .min_col_width(160.0)
-            .max_col_width(200.0)
-            .show(ui, |ui| {
-                stat_card(ui, i18n::t("sales", lang), &format!("{:.0} DA", stats.sales_total), GOOD, is_dark);
-                stat_card(ui, i18n::t("transactions", lang), &format!("{}", stats.transaction_count), ACCENT, is_dark);
-                ui.end_row();
-                stat_card(ui, i18n::t("expenses", lang), &format!("{:.0} DA", stats.expenses_total), BAD, is_dark);
-                stat_card(ui, i18n::t("profit", lang), &format!("{:.0} DA", profit), if profit >= 0.0 { GOOD } else { BAD }, is_dark);
-                ui.end_row();
-            });
-    });
-
-    ui.add_space(20.0);
-    ui.label(egui::RichText::new(i18n::t("low_stock", lang)).size(14.0).strong());
-    ui.add_space(8.0);
-
-    card(ui, is_dark, |ui| {
-        if low_stock.is_empty() {
-            ui.colored_label(TEXT_DIM, i18n::t("all_stocked", lang));
-        } else {
-            egui::Grid::new("low_stock_grid")
-                .striped(true)
-                .min_col_width(100.0)
-                .show(ui, |ui| {
-                    ui.strong(i18n::t("name", lang));
-                    ui.strong(i18n::t("stock", lang));
-                    ui.strong(i18n::t("price", lang));
-                    ui.end_row();
-
-                    for p in &low_stock {
-                        ui.label(egui::RichText::new(&p.name).size(13.0));
-                        ui.colored_label(BAD, format!("{}", p.quantity_on_hand));
-                        ui.label(egui::RichText::new(format!("{:.0} DA", p.selling_price)).size(13.0));
-                        ui.end_row();
-                    }
-                });
-        }
-    });
+        
+    next_screen
 }

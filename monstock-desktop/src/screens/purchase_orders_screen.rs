@@ -135,7 +135,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
 
                         ui.label(egui::RichText::new(&po.created_at).size(12.0).color(TEXT_SEC));
                         if po.status == "Draft" {
-                            let r = ui.add(
+                            let r = btn_custom(ui,
                                 egui::Button::new(egui::RichText::new(i18n::t("received", lang)).size(11.0).color(TEXT))
                                     .fill(GOOD).corner_radius(4).min_size(egui::vec2(60.0, 22.0))
                             );
@@ -143,7 +143,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                         } else {
                             ui.label("");
                         }
-                        let d = ui.add(
+                        let d = btn_custom(ui,
                             egui::Button::new(egui::RichText::new("X").size(10.0).color(TEXT_DIM))
                                 .fill(egui::Color32::TRANSPARENT).min_size(egui::vec2(20.0, 20.0))
                         );
@@ -198,7 +198,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                             ui.add(egui::TextEdit::singleline(&mut item.product_name).desired_width(140.0).hint_text("Nom du produit"));
                             ui.add(egui::TextEdit::singleline(&mut item.quantity).desired_width(50.0));
                             ui.add(egui::TextEdit::singleline(&mut item.unit_cost).desired_width(60.0));
-                            let r = ui.add(egui::Button::new(egui::RichText::new("X").size(11.0).color(TEXT_DIM)).fill(egui::Color32::TRANSPARENT).min_size(egui::vec2(20.0, 20.0)));
+                            let r = btn_custom(ui, egui::Button::new(egui::RichText::new("X").size(11.0).color(TEXT_DIM)).fill(egui::Color32::TRANSPARENT).min_size(egui::vec2(20.0, 20.0)));
                             if r.clicked() { remove_idx = Some(idx); }
                             ui.end_row();
                         }
@@ -207,14 +207,14 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 });
 
                 ui.add_space(4.0);
-                if ui.button(egui::RichText::new("+ Article").size(12.0).color(ACCENT)).clicked() { state.add_item_row(); }
+                if btn(ui, egui::RichText::new("+ Article").size(12.0).color(ACCENT)).clicked() { state.add_item_row(); }
                 ui.add_space(12.0);
                 if let Some(ref err) = state.form_error { ui.colored_label(BAD, err); ui.add_space(4.0); }
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button(i18n::t("save", lang)).clicked() { state.save(conn); }
+                        if btn(ui, i18n::t("save", lang)).clicked() { state.save(conn); }
                         ui.add_space(8.0);
-                        if ui.button(i18n::t("cancel", lang)).clicked() { state.close_modal(); }
+                        if btn(ui, i18n::t("cancel", lang)).clicked() { state.close_modal(); }
                     });
                 });
             });

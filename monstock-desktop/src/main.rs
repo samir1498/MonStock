@@ -9,7 +9,7 @@ use screens::*;
 use style::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum Screen {
+pub enum Screen {
     Dashboard,
     Products,
     PurchaseOrders,
@@ -83,10 +83,10 @@ impl eframe::App for MonStockApp {
                     ui.add_space(6.0);
                     ui.vertical(|ui| {
                         ui.label(egui::RichText::new(t("monstock", self.lang))
-                            .size(15.0).strong());
+                            .size(17.0).strong());
                         ui.add_space(1.0);
                         ui.label(egui::RichText::new(t("app_subtitle", self.lang))
-                            .size(11.0).color(TEXT_DIM));
+                            .size(12.0).color(TEXT_DIM));
                     });
                 });
 
@@ -98,7 +98,7 @@ impl eframe::App for MonStockApp {
                     let bg_c = if selected { active_bg } else { egui::Color32::TRANSPARENT };
                     let border_c = if selected { BORDER_STRONG } else { egui::Color32::TRANSPARENT };
 
-                    let frame = egui::Frame::new()
+                    let frame_res = egui::Frame::new()
                         .fill(bg_c)
                         .stroke(egui::Stroke::new(1.0, border_c))
                         .corner_radius(6)
@@ -106,24 +106,28 @@ impl eframe::App for MonStockApp {
                         .show(ui, |ui| {
                             ui.set_min_width(ui.available_width());
                             ui.horizontal(|ui| {
-                                if selected {
-                                    let indicator = egui::Rect::from_min_size(
-                                        egui::pos2(ui.min_rect().left(), ui.min_rect().top() + 4.0),
-                                        egui::vec2(3.0, 16.0),
-                                    );
-                                    ui.painter().rect_filled(indicator,
-                                        egui::CornerRadius::same(2), TEXT);
-                                }
-                                ui.label(egui::RichText::new(*num).size(11.0)
+                                ui.label(egui::RichText::new(*num).size(12.0)
                                     .monospace().color(TEXT_DIM));
                                 ui.add_space(8.0);
                                 ui.label(egui::RichText::new(t(key, self.lang))
-                                    .size(12.5).color(text_c));
+                                    .size(14.0).color(text_c));
                             });
                         });
 
-                    let sense = ui.interact(frame.response.rect, ui.next_auto_id(),
-                        egui::Sense::click());
+                    if selected {
+                        let rect = frame_res.response.rect;
+                        let indicator = egui::Rect::from_min_max(
+                            egui::pos2(rect.left() + 4.0, rect.top() + (rect.height() - 14.0) / 2.0),
+                            egui::pos2(rect.left() + 7.0, rect.top() + (rect.height() + 14.0) / 2.0)
+                        );
+                        ui.painter().rect_filled(indicator, egui::CornerRadius::same(1), TEXT);
+                    }
+
+                    let id = ui.make_persistent_id(key);
+                    let sense = ui.interact(frame_res.response.rect, id, egui::Sense::click());
+                    if sense.hovered() {
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                    }
                     if sense.clicked() {
                         self.screen = *screen;
                     }
@@ -133,43 +137,41 @@ impl eframe::App for MonStockApp {
                 ui.separator();
                 ui.add_space(8.0);
 
-                ui.horizontal(|ui| {
-                    ui.add_space(14.0);
-                    ui.label(egui::RichText::new("System").size(10.0)
-                        .color(TEXT_DIM).strong());
-                });
-                ui.add_space(4.0);
+                ui.vertical(|ui| {
+                    ui.spacing_mut().item_spacing.y = 2.0;
 
-                let theme_text = if is_dark { t("light_mode", self.lang) } else { t("dark_mode", self.lang) };
-                if nav_btn(ui, &format!("~ {}", theme_text), nav_text, sidebar_bg).clicked() {
-                    let mut visuals = ui.ctx().global_style().visuals.clone();
-                    visuals.dark_mode = !is_dark;
-                    ui.ctx().set_visuals(visuals);
-                }
-
-                let lang_label = self.lang.label();
-                let lang_text = format!("@ {}: {}", t("language", self.lang), lang_label);
-                if nav_btn(ui, &lang_text, nav_text, sidebar_bg).clicked() {
-                    self.lang = self.lang.toggle();
-                }
-
-                ui.add_space(14.0);
-                ui.horizontal(|ui| {
-                    ui.add_space(16.0);
-                    ui.painter().rect_filled(
-                        egui::Rect::from_min_size(ui.min_rect().min, egui::vec2(5.0, 5.0)),
-                        egui::CornerRadius::same(3), GOOD);
+                    ui.horizontal(|ui| {
+                        ui.add_space(12.0); // Align with nav items text start
+                        ui.label(egui::RichText::new("System").size(10.0)
+                            .color(TEXT_DIM).strong());
+                    });
                     ui.add_space(4.0);
-                    ui.label(egui::RichText::new("Offline mode").size(11.0).color(TEXT_DIM));
+
+                    let theme_text = if is_dark { t("light_mode", self.lang) } else { t("dark_mode", self.lang) };
+                    if system_btn(ui, SystemIcon::SunMoon, &theme_text, nav_text, is_dark, sidebar_bg).clicked() {
+                        let mut visuals = ui.ctx().global_style().visuals.clone();
+                        visuals.dark_mode = !is_dark;
+                        ui.ctx().set_visuals(visuals);
+                    }
+
+                    let lang_label = self.lang.label();
+                    let lang_text = format!("{}: {}", t("language", self.lang), lang_label);
+                    if system_btn(ui, SystemIcon::Globe, &lang_text, nav_text, is_dark, sidebar_bg).clicked() {
+                        self.lang = self.lang.toggle();
+                    }
                 });
             });
 
         egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(main_bg))
+            .frame(egui::Frame::new().fill(main_bg).inner_margin(egui::Margin::same(28)))
             .show_inside(ui, |ui| {
                 match self.screen {
-                    Screen::Dashboard => dashboard_screen::show(ui, &mut self.conn, self.lang,
-                        is_dark, &mut self.dashboard_state),
+                    Screen::Dashboard => {
+                        if let Some(next_screen) = dashboard_screen::show(ui, &mut self.conn, self.lang,
+                            is_dark, &mut self.dashboard_state) {
+                            self.screen = next_screen;
+                        }
+                    }
                     Screen::Products => products_screen::show(ui, &mut self.conn, self.lang,
                         is_dark, &mut self.products_state),
                     Screen::PurchaseOrders => purchase_orders_screen::show(ui, &mut self.conn,
@@ -183,7 +185,43 @@ impl eframe::App for MonStockApp {
     }
 }
 
-fn nav_btn(ui: &mut egui::Ui, label: &str, text_color: egui::Color32, _bg: egui::Color32) -> egui::Response {
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum SystemIcon {
+    SunMoon,
+    Globe,
+}
+
+fn draw_sun(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
+    painter.circle_filled(center, 3.5, color);
+    for i in 0..8 {
+        let angle = (i as f32) * std::f32::consts::TAU / 8.0;
+        let start = center + egui::vec2(angle.cos() * 5.0, angle.sin() * 5.0);
+        let end = center + egui::vec2(angle.cos() * 7.5, angle.sin() * 7.5);
+        painter.line_segment([start, end], egui::Stroke::new(1.0, color));
+    }
+}
+
+fn draw_moon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32, bg_color: egui::Color32) {
+    painter.circle_filled(center, 5.0, color);
+    painter.circle_filled(center + egui::vec2(2.0, -1.0), 4.5, bg_color);
+}
+
+fn draw_globe(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
+    painter.circle_stroke(center, 5.5, egui::Stroke::new(1.0, color));
+    // horizontal line
+    painter.line_segment([center - egui::vec2(5.5, 0.0), center + egui::vec2(5.5, 0.0)], egui::Stroke::new(1.0, color));
+    // vertical line
+    painter.line_segment([center - egui::vec2(0.0, 5.5), center + egui::vec2(0.0, 5.5)], egui::Stroke::new(1.0, color));
+}
+
+fn system_btn(
+    ui: &mut egui::Ui,
+    icon: SystemIcon,
+    label: &str,
+    text_color: egui::Color32,
+    is_dark: bool,
+    sidebar_bg: egui::Color32,
+) -> egui::Response {
     let frame = egui::Frame::new()
         .fill(egui::Color32::TRANSPARENT)
         .corner_radius(6)
@@ -191,11 +229,33 @@ fn nav_btn(ui: &mut egui::Ui, label: &str, text_color: egui::Color32, _bg: egui:
         .show(ui, |ui| {
             ui.set_min_width(ui.available_width());
             ui.horizontal(|ui| {
-                ui.add_space(4.0);
+                let (rect, _) = ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::hover());
+                let center = rect.center();
+                let painter = ui.painter();
+
+                match icon {
+                    SystemIcon::SunMoon => {
+                        if is_dark {
+                            draw_sun(painter, center, text_color);
+                        } else {
+                            draw_moon(painter, center, text_color, sidebar_bg);
+                        }
+                    }
+                    SystemIcon::Globe => {
+                        draw_globe(painter, center, text_color);
+                    }
+                }
+
+                ui.add_space(8.0);
                 ui.label(egui::RichText::new(label).size(13.0).color(text_color));
             });
         });
-    ui.interact(frame.response.rect, ui.next_auto_id(), egui::Sense::click())
+    let id = ui.make_persistent_id(label);
+    let response = ui.interact(frame.response.rect, id, egui::Sense::click());
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    response
 }
 
 fn main() -> eframe::Result {

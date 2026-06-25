@@ -6,14 +6,14 @@ pub const RAISED: egui::Color32 = egui::Color32::from_rgb(22, 22, 26);
 pub const HOVER: egui::Color32 = egui::Color32::from_rgb(28, 28, 34);
 pub const BORDER: egui::Color32 = egui::Color32::from_rgb(30, 30, 38);
 pub const BORDER_STRONG: egui::Color32 = egui::Color32::from_rgb(42, 42, 52);
-pub const TEXT: egui::Color32 = egui::Color32::from_rgb(232, 232, 236);
-pub const TEXT_SEC: egui::Color32 = egui::Color32::from_rgb(110, 110, 122);
-pub const TEXT_DIM: egui::Color32 = egui::Color32::from_rgb(70, 70, 80);
-pub const ACCENT: egui::Color32 = egui::Color32::from_rgb(124, 143, 163);
-pub const ACCENT_DIM: egui::Color32 = egui::Color32::from_rgba_premultiplied(124, 143, 163, 40);
-pub const GOOD: egui::Color32 = egui::Color32::from_rgb(106, 138, 122);
-pub const BAD: egui::Color32 = egui::Color32::from_rgb(138, 106, 106);
-pub const WARN: egui::Color32 = egui::Color32::from_rgb(138, 122, 106);
+pub const TEXT: egui::Color32 = egui::Color32::from_rgb(240, 240, 245);
+pub const TEXT_SEC: egui::Color32 = egui::Color32::from_rgb(160, 165, 180);
+pub const TEXT_DIM: egui::Color32 = egui::Color32::from_rgb(115, 120, 135);
+pub const ACCENT: egui::Color32 = egui::Color32::from_rgb(140, 160, 185);
+pub const ACCENT_DIM: egui::Color32 = egui::Color32::from_rgba_premultiplied(140, 160, 185, 45);
+pub const GOOD: egui::Color32 = egui::Color32::from_rgb(120, 160, 140);
+pub const BAD: egui::Color32 = egui::Color32::from_rgb(170, 120, 120);
+pub const WARN: egui::Color32 = egui::Color32::from_rgb(160, 140, 120);
 
 pub fn surface(is_dark: bool) -> egui::Color32 {
     if is_dark { SURFACE } else { egui::Color32::from_rgb(245, 245, 250) }
@@ -62,7 +62,6 @@ pub fn card(ui: &mut egui::Ui, is_dark: bool, add_contents: impl FnOnce(&mut egu
 pub fn page_header(ui: &mut egui::Ui, icon: &str, title: &str, subtitle: &str, is_dark: bool) {
     ui.add_space(16.0);
     ui.horizontal(|ui| {
-        ui.add_space(24.0);
         ui.label(egui::RichText::new(icon).size(20.0).color(ACCENT).monospace());
         ui.add_space(10.0);
         ui.vertical(|ui| {
@@ -75,12 +74,32 @@ pub fn page_header(ui: &mut egui::Ui, icon: &str, title: &str, subtitle: &str, i
 }
 
 pub fn primary_btn(ui: &mut egui::Ui, label: &str) -> egui::Response {
-    ui.add(egui::Button::new(egui::RichText::new(label).color(BG).size(12.0))
-        .fill(TEXT).corner_radius(6).min_size(egui::vec2(80.0, 28.0)))
+    let r = ui.add(egui::Button::new(egui::RichText::new(label).color(BG).size(12.0))
+        .fill(TEXT).corner_radius(6).min_size(egui::vec2(80.0, 28.0)));
+    if r.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    r
+}
+
+pub fn btn(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) -> egui::Response {
+    let r = ui.button(text);
+    if r.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    r
+}
+
+pub fn btn_custom(ui: &mut egui::Ui, button: egui::Button) -> egui::Response {
+    let r = ui.add(button);
+    if r.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    r
 }
 
 pub fn table_header(ui: &mut egui::Ui, label: &str) {
-    ui.colored_label(TEXT_DIM, egui::RichText::new(label).size(10.5).strong());
+    ui.colored_label(TEXT_SEC, egui::RichText::new(label).size(12.5).strong());
 }
 
 pub fn mono_value(ui: &mut egui::Ui, value: &str, color: egui::Color32) {

@@ -142,12 +142,14 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                             });
                             let margin = p.margin_pct();
                             mono_value(ui, &format!("{:.0}%", margin), if margin >= 30.0 { GOOD } else if margin >= 10.0 { WARN } else { BAD });
-                            let del_sense = ui.add(
-                                egui::Button::new(egui::RichText::new("X").size(10.0).color(TEXT_DIM))
-                                    .fill(egui::Color32::TRANSPARENT)
-                                    .min_size(egui::vec2(20.0, 20.0))
-                            );
-                            if del_sense.clicked() { state.delete(conn, p.id); }
+                            ui.horizontal(|ui| {
+                                if btn(ui, egui::RichText::new(i18n::t("edit", lang)).size(11.0)).clicked() {
+                                    state.open_edit(p.id, &p.name, &p.barcode, p.cost_price, p.selling_price);
+                                }
+                                if btn(ui, egui::RichText::new("X").size(11.0).color(BAD)).clicked() {
+                                    state.delete(conn, p.id);
+                                }
+                            });
                             ui.end_row();
                         }
                     });
@@ -201,9 +203,9 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 if let Some(ref err) = state.form_error { ui.colored_label(BAD, err); ui.add_space(4.0); }
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button(i18n::t("save", lang)).clicked() { state.save(conn); }
+                        if btn(ui, i18n::t("save", lang)).clicked() { state.save(conn); }
                         ui.add_space(8.0);
-                        if ui.button(i18n::t("cancel", lang)).clicked() { state.close_modal(); }
+                        if btn(ui, i18n::t("cancel", lang)).clicked() { state.close_modal(); }
                     });
                 });
             });
