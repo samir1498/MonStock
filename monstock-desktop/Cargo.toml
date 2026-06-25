@@ -1,0 +1,10 @@
+[package]
+name = "monstock-desktop"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+monstock-core = { path = "../monstock-core" }
+eframe = "0.34.3"
+egui = "0.34.3"
+env_logger = "0.11.10"

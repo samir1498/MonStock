@@ -1,0 +1,58 @@
+use diesel::prelude::*;
+use diesel::SqliteConnection;
+use crate::models::*;
+use crate::schema::products;
+
+pub fn insert_product(conn: &mut SqliteConnection, p: &NewProduct) -> QueryResult<Product> {
+    diesel::insert_into(products::table)
+        .values(p)
+        .returning(Product::as_returning())
+        .get_result(conn)
+}
+
+pub fn find_all_products(conn: &mut SqliteConnection) -> QueryResult<Vec<Product>> {
+    products::table
+        .order(products::name.asc())
+        .select(Product::as_select())
+        .load(conn)
+}
+
+pub fn find_product_by_id(conn: &mut SqliteConnection, product_id: i32) -> QueryResult<Option<Product>> {
+    products::table
+        .find(product_id)
+        .select(Product::as_select())
+        .first(conn)
+        .optional()
+}
+
+pub fn find_product_by_barcode(conn: &mut SqliteConnection, barcode: &str) -> QueryResult<Option<Product>> {
+    products::table
+        .filter(products::barcode.eq(barcode))
+        .select(Product::as_select())
+        .first(conn)
+        .optional()
+}
+
+pub fn update_product(conn: &mut SqliteConnection, product_id: i32, p: &NewProduct) -> QueryResult<()> {
+    diesel::update(products::table.find(product_id))
+        .set((
+            products::name.eq(&p.name),
+            products::barcode.eq(&p.barcode),
+            products::selling_price.eq(p.selling_price),
+        ))
+        .execute(conn)
+        .map(|_| ())
+}
+
+pub fn set_product_cost_price(conn: &mut SqliteConnection, product_id: i32, cost_price: f64) -> QueryResult<()> {
+    diesel::update(products::table.find(product_id))
+        .set(products::cost_price.eq(cost_price))
+        .execute(conn)
+        .map(|_| ())
+}
+
+pub fn delete_product(conn: &mut SqliteConnection, product_id: i32) -> QueryResult<bool> {
+    let rows = diesel::delete(products::table.find(product_id))
+        .execute(conn)?;
+    Ok(rows > 0)
+}
