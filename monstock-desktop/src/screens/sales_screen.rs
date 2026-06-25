@@ -7,6 +7,7 @@ pub struct SalesState {
     pub filter_date: String,
     pub form_items: Vec<SaleItemForm>,
     pub form_error: Option<String>,
+    pub pagination: PaginationState,
 }
 
 pub(crate) struct SaleItemForm {
@@ -23,6 +24,7 @@ impl Default for SalesState {
             filter_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
             form_items: Vec::new(),
             form_error: None,
+            pagination: Default::default(),
         }
     }
 }
@@ -88,10 +90,11 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
 
     ui.add_space(8.0);
     card(ui, is_dark, |ui| {
-        let transactions = monstock_core::services::sale_service::find_transactions_by_date(conn, &state.filter_date);
+        state.pagination.total = monstock_core::services::sale_service::count_transactions_by_date(conn, &state.filter_date).unwrap_or(0);
+        let transactions = monstock_core::services::sale_service::find_transactions_paginated(conn, &state.filter_date, state.pagination.page, state.pagination.per_page);
         match transactions {
             Ok(list) => {
-                egui::Grid::new("sales_grid").striped(true).min_col_width(80.0).show(ui, |ui| {
+                egui::Grid::new("sales_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
                     table_header(ui, "ID");
                     table_header(ui, i18n::t("date", lang));
                     table_header(ui, i18n::t("total", lang));
@@ -104,6 +107,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                         ui.end_row();
                     }
                 });
+                pagination_ui(ui, &mut state.pagination, is_dark);
             }
             Err(e) => { ui.colored_label(BAD, format!("{}: {}", i18n::t("error", lang), e)); }
         }
@@ -115,15 +119,15 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             .fixed_size([500.0, 450.0]).collapsible(false).title_bar(true).resizable(false).movable(false)
             .show(ui.ctx(), |ui| {
                 ui.add_space(8.0);
-                ui.label(egui::RichText::new("Produits disponibles").size(14.0).color(text_color(is_dark)).strong());
+                ui.label(egui::RichText::new(i18n::t("available_products", lang)).size(14.0).color(text_color(is_dark)).strong());
                 ui.add_space(4.0);
 
                 let products = monstock_core::services::product_service::find_all(conn).unwrap_or_default();
                 egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
                     egui::Grid::new("product_picker_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
-                        table_header(ui, "Produit");
+                        table_header(ui, i18n::t("product", lang));
                         table_header(ui, i18n::t("stock", lang));
-                        table_header(ui, "Prix");
+                        table_header(ui, i18n::t("unit_price", lang));
                         table_header(ui, "");
                         ui.end_row();
 
@@ -141,13 +145,13 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 });
 
                 ui.add_space(8.0); ui.separator(); ui.add_space(4.0);
-                ui.label(egui::RichText::new("Articles saisis").size(14.0).color(text_color(is_dark)).strong());
+                ui.label(egui::RichText::new(i18n::t("entered_items", lang)).size(14.0).color(text_color(is_dark)).strong());
 
                 egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
                     egui::Grid::new("sale_items_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
-                        table_header(ui, "Produit");
-                        table_header(ui, "Qte");
-                        table_header(ui, "Prix unit.");
+                        table_header(ui, i18n::t("product", lang));
+                        table_header(ui, i18n::t("quantity", lang));
+                        table_header(ui, i18n::t("unit_price", lang));
                         table_header(ui, "");
                         ui.end_row();
 

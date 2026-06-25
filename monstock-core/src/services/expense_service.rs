@@ -18,6 +18,24 @@ pub fn find_by_date_range(
     expense_repo::find_expenses_by_date_range(conn, start_date, end_date)
 }
 
+pub fn find_paginated(
+    conn: &mut SqliteConnection,
+    start_date: &str,
+    end_date: &str,
+    page: i64,
+    per_page: i64,
+) -> QueryResult<Vec<Expense>> {
+    expense_repo::find_expenses_paginated(conn, start_date, end_date, page, per_page)
+}
+
+pub fn count_by_date_range(
+    conn: &mut SqliteConnection,
+    start_date: &str,
+    end_date: &str,
+) -> QueryResult<i64> {
+    expense_repo::count_expenses_by_range(conn, start_date, end_date)
+}
+
 pub fn find_by_category(
     conn: &mut SqliteConnection,
     category: &str,

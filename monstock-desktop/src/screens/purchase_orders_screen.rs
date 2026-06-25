@@ -16,6 +16,7 @@ pub struct PurchaseOrdersState {
     pub form_notes: String,
     pub form_items: Vec<PoItemForm>,
     pub form_error: Option<String>,
+    pub pagination: PaginationState,
 }
 
 impl Default for PurchaseOrdersState {
@@ -27,6 +28,7 @@ impl Default for PurchaseOrdersState {
             form_notes: String::new(),
             form_items: vec![PoItemForm { product_name: String::new(), quantity: "1".to_string(), unit_cost: "0".to_string() }],
             form_error: None,
+            pagination: Default::default(),
         }
     }
 }
@@ -112,10 +114,11 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
 
     ui.add_space(8.0);
     card(ui, is_dark, |ui| {
-        let orders = monstock_core::services::purchase_order_service::find_all(conn);
+        state.pagination.total = monstock_core::services::purchase_order_service::count_all(conn).unwrap_or(0);
+        let orders = monstock_core::services::purchase_order_service::find_paginated(conn, state.pagination.page, state.pagination.per_page);
         match orders {
             Ok(list) => {
-                egui::Grid::new("po_grid").striped(true).min_col_width(80.0).show(ui, |ui| {
+                egui::Grid::new("po_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
                     table_header(ui, i18n::t("name", lang));
                     table_header(ui, i18n::t("supplier", lang));
                     table_header(ui, i18n::t("total", lang));
@@ -131,7 +134,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                         mono_value(ui, supplier_name.as_deref().unwrap_or("-"), TEXT_SEC);
                         amount_text(ui, &format!("{:.0}", po.total), TEXT);
                         let (sc, sl) = if po.status == "Received" { (GOOD, i18n::t("received", lang)) } else { (WARN, i18n::t("draft", lang)) };
-                        tag(ui, &sl, sc);
+                        tag(ui, &sl, sc, is_dark);
 
                         ui.label(egui::RichText::new(&po.created_at).size(12.0).color(TEXT_SEC));
                         if po.status == "Draft" {
@@ -151,6 +154,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                         ui.end_row();
                     }
                 });
+                pagination_ui(ui, &mut state.pagination, is_dark);
             }
             Err(e) => { ui.colored_label(BAD, format!("{}: {}", i18n::t("error", lang), e)); }
         }
@@ -183,19 +187,19 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 ui.add_space(12.0);
                 ui.separator();
                 ui.add_space(4.0);
-                ui.label(egui::RichText::new("Articles").size(14.0).color(text_color(is_dark)).strong());
+                ui.label(egui::RichText::new(i18n::t("entered_items", lang)).size(14.0).color(text_color(is_dark)).strong());
 
                 egui::ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
                     egui::Grid::new("po_items_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
-                        table_header(ui, "Produit");
-                        table_header(ui, "Qte");
-                        table_header(ui, "Prix unit.");
+                        table_header(ui, i18n::t("product", lang));
+                        table_header(ui, i18n::t("quantity", lang));
+                        table_header(ui, i18n::t("unit_price", lang));
                         table_header(ui, "");
                         ui.end_row();
 
                         let mut remove_idx: Option<usize> = None;
                         for (idx, item) in state.form_items.iter_mut().enumerate() {
-                            ui.add(egui::TextEdit::singleline(&mut item.product_name).desired_width(140.0).hint_text("Nom du produit"));
+                            ui.add(egui::TextEdit::singleline(&mut item.product_name).desired_width(140.0).hint_text(i18n::t("name", lang)));
                             ui.add(egui::TextEdit::singleline(&mut item.quantity).desired_width(50.0));
                             ui.add(egui::TextEdit::singleline(&mut item.unit_cost).desired_width(60.0));
                             let r = btn_custom(ui, egui::Button::new(egui::RichText::new("X").size(11.0).color(TEXT_DIM)).fill(egui::Color32::TRANSPARENT).min_size(egui::vec2(20.0, 20.0)));
@@ -207,7 +211,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 });
 
                 ui.add_space(4.0);
-                if btn(ui, egui::RichText::new("+ Article").size(12.0).color(ACCENT)).clicked() { state.add_item_row(); }
+                if btn(ui, egui::RichText::new(format!("+ {}", i18n::t("add", lang))).size(12.0).color(ACCENT)).clicked() { state.add_item_row(); }
                 ui.add_space(12.0);
                 if let Some(ref err) = state.form_error { ui.colored_label(BAD, err); ui.add_space(4.0); }
                 ui.horizontal(|ui| {

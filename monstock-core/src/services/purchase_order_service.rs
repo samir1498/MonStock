@@ -85,6 +85,20 @@ pub fn find_all(
     purchase_order_repo::find_all_purchase_orders(conn)
 }
 
+pub fn find_paginated(
+    conn: &mut SqliteConnection,
+    page: i64,
+    per_page: i64,
+) -> QueryResult<Vec<PurchaseOrder>> {
+    purchase_order_repo::find_purchase_orders_paginated(conn, page, per_page)
+}
+
+pub fn count_all(
+    conn: &mut SqliteConnection,
+) -> QueryResult<i64> {
+    purchase_order_repo::count_purchase_orders(conn)
+}
+
 pub fn find_by_id(
     conn: &mut SqliteConnection,
     purchase_order_id: i32,

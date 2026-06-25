@@ -66,6 +66,32 @@ pub fn find_transactions_by_date(
         .load(conn)
 }
 
+pub fn find_transactions_paginated(
+    conn: &mut SqliteConnection,
+    date: &str,
+    page: i64,
+    per_page: i64,
+) -> QueryResult<Vec<Transaction>> {
+    transactions::table
+        .filter(transactions::timestamp.like(format!("{}%", date)))
+        .order(transactions::timestamp.desc())
+        .select(Transaction::as_select())
+        .offset((page - 1).max(0) * per_page)
+        .limit(per_page)
+        .load(conn)
+}
+
+pub fn count_transactions_by_date(
+    conn: &mut SqliteConnection,
+    date: &str,
+) -> QueryResult<i64> {
+    use diesel::dsl::count;
+    transactions::table
+        .filter(transactions::timestamp.like(format!("{}%", date)))
+        .select(count(transactions::id))
+        .first::<i64>(conn)
+}
+
 pub fn find_items_by_transaction(
     conn: &mut SqliteConnection,
     transaction_id: i32,

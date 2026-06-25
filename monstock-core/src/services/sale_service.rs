@@ -94,6 +94,22 @@ pub fn find_transactions_by_date(
     transaction_repo::find_transactions_by_date(conn, date)
 }
 
+pub fn find_transactions_paginated(
+    conn: &mut SqliteConnection,
+    date: &str,
+    page: i64,
+    per_page: i64,
+) -> QueryResult<Vec<Transaction>> {
+    transaction_repo::find_transactions_paginated(conn, date, page, per_page)
+}
+
+pub fn count_transactions_by_date(
+    conn: &mut SqliteConnection,
+    date: &str,
+) -> QueryResult<i64> {
+    transaction_repo::count_transactions_by_date(conn, date)
+}
+
 pub fn find_items_by_transaction(
     conn: &mut SqliteConnection,
     transaction_id: i32,

@@ -2,11 +2,14 @@
 name = "monstock-desktop"
 version = "0.1.0"
 edition = "2021"
+default-run = "monstock-desktop"
 
 [dependencies]
 monstock-core = { path = "../monstock-core" }
 diesel = { version = "2.2.0", features = ["sqlite"] }
 eframe = "0.34.3"
 egui = "0.34.3"
+egui_extras = { version = "0.34", features = ["svg"] }
 env_logger = "0.11.10"
 chrono = { version = "0.4", features = ["serde"] }
+dirs = "6.0"

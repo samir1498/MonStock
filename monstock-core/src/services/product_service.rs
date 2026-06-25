@@ -16,6 +16,20 @@ pub fn find_all(
     product_repo::find_all_products(conn)
 }
 
+pub fn find_paginated(
+    conn: &mut SqliteConnection,
+    page: i64,
+    per_page: i64,
+) -> QueryResult<Vec<Product>> {
+    product_repo::find_products_paginated(conn, page, per_page)
+}
+
+pub fn count_all(
+    conn: &mut SqliteConnection,
+) -> QueryResult<i64> {
+    product_repo::count_products(conn)
+}
+
 pub fn find_by_id(
     conn: &mut SqliteConnection,
     product_id: i32,

@@ -44,6 +44,26 @@ pub fn find_all_purchase_orders(conn: &mut SqliteConnection) -> QueryResult<Vec<
         .load(conn)
 }
 
+pub fn find_purchase_orders_paginated(
+    conn: &mut SqliteConnection,
+    page: i64,
+    per_page: i64,
+) -> QueryResult<Vec<PurchaseOrder>> {
+    purchase_orders::table
+        .order(purchase_orders::created_at.desc())
+        .select(PurchaseOrder::as_select())
+        .offset((page - 1).max(0) * per_page)
+        .limit(per_page)
+        .load(conn)
+}
+
+pub fn count_purchase_orders(conn: &mut SqliteConnection) -> QueryResult<i64> {
+    use diesel::dsl::count;
+    purchase_orders::table
+        .select(count(purchase_orders::id))
+        .first::<i64>(conn)
+}
+
 pub fn find_purchase_order_by_id(conn: &mut SqliteConnection, purchase_order_id: i32) -> QueryResult<Option<PurchaseOrder>> {
     purchase_orders::table
         .find(purchase_order_id)

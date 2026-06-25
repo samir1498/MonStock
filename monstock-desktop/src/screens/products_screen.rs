@@ -10,6 +10,7 @@ pub struct ProductsState {
     pub form_cost_price: String,
     pub form_selling_price: String,
     pub form_error: Option<String>,
+    pub pagination: PaginationState,
 }
 
 impl Default for ProductsState {
@@ -22,6 +23,7 @@ impl Default for ProductsState {
             form_cost_price: String::new(),
             form_selling_price: String::new(),
             form_error: None,
+            pagination: Default::default(),
         }
     }
 }
@@ -81,10 +83,6 @@ impl ProductsState {
     }
 }
 
-fn initials(name: &str) -> String {
-    name.split_whitespace().filter_map(|w| w.chars().next()).take(2).collect()
-}
-
 pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, is_dark: bool, state: &mut ProductsState) {
     page_header(ui, "02", i18n::t("products", lang), i18n::t("inventory", lang), is_dark);
 
@@ -101,15 +99,14 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
 
     ui.add_space(8.0);
     card(ui, is_dark, |ui| {
-        let products = monstock_core::services::product_service::find_all(conn);
+        state.pagination.total = monstock_core::services::product_service::count_all(conn).unwrap_or(0);
+        let products = monstock_core::services::product_service::find_paginated(conn, state.pagination.page, state.pagination.per_page);
         match products {
             Ok(list) => {
                 egui::Grid::new("products_grid")
                     .striped(true)
-                    .min_col_width(80.0)
                     .show(ui, |ui| {
-                        table_header(ui, "");
-                        table_header(ui, i18n::t("name", lang));
+                        table_header(ui, i18n::t("product", lang));
                         table_header(ui, i18n::t("barcode", lang));
                         table_header(ui, i18n::t("cost_price", lang));
                         table_header(ui, i18n::t("selling_price", lang));
@@ -119,18 +116,11 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                         ui.end_row();
 
                         for p in &list {
-                            let _row_id = ui.next_auto_id();
-                            let _response = egui::Frame::new()
-                                .inner_margin(egui::Margin::symmetric(4, 4))
-                                .show(ui, |ui| {
-                                ui.horizontal(|ui| {
-                                    product_avatar(ui, &initials(&p.name));
-                                    ui.add_space(4.0);
-                                    ui.vertical(|ui| {
-                                        ui.label(egui::RichText::new(&p.name).size(12.5).color(text_color(is_dark)).strong());
-                                        ui.label(egui::RichText::new(format!("PRD-{:03}", p.id)).size(11.0).monospace().color(TEXT_DIM));
-                                    });
-                                });
+                            ui.vertical(|ui| {
+                                ui.add(egui::Label::new(
+                                    egui::RichText::new(&p.name).size(12.5).color(text_color(is_dark)).strong()
+                                ).extend());
+                                ui.label(egui::RichText::new(format!("PRD-{:03}", p.id)).size(11.0).monospace().color(TEXT_DIM));
                             });
                             mono_value(ui, p.barcode.as_deref().unwrap_or("-"), TEXT_SEC);
                             mono_value(ui, &format!("{:.0}", p.cost_price), TEXT_SEC);
@@ -153,6 +143,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                             ui.end_row();
                         }
                     });
+                pagination_ui(ui, &mut state.pagination, is_dark);
             }
             Err(e) => { ui.colored_label(BAD, format!("{}: {}", i18n::t("error", lang), e)); }
         }

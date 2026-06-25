@@ -13,7 +13,7 @@ pub fn open(path: impl AsRef<Path>) -> ConnectionResult<SqliteConnection> {
     Ok(conn)
 }
 
-fn run_migrations(conn: &mut SqliteConnection) {
+pub fn run_migrations(conn: &mut SqliteConnection) {
     use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
     pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
     conn.run_pending_migrations(MIGRATIONS)

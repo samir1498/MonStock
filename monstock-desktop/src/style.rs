@@ -3,7 +3,6 @@ use egui;
 pub const BG: egui::Color32 = egui::Color32::from_rgb(10, 10, 12);
 pub const SURFACE: egui::Color32 = egui::Color32::from_rgb(17, 17, 20);
 pub const RAISED: egui::Color32 = egui::Color32::from_rgb(22, 22, 26);
-pub const HOVER: egui::Color32 = egui::Color32::from_rgb(28, 28, 34);
 pub const BORDER: egui::Color32 = egui::Color32::from_rgb(30, 30, 38);
 pub const BORDER_STRONG: egui::Color32 = egui::Color32::from_rgb(42, 42, 52);
 pub const TEXT: egui::Color32 = egui::Color32::from_rgb(240, 240, 245);
@@ -15,9 +14,6 @@ pub const GOOD: egui::Color32 = egui::Color32::from_rgb(120, 160, 140);
 pub const BAD: egui::Color32 = egui::Color32::from_rgb(170, 120, 120);
 pub const WARN: egui::Color32 = egui::Color32::from_rgb(160, 140, 120);
 
-pub fn surface(is_dark: bool) -> egui::Color32 {
-    if is_dark { SURFACE } else { egui::Color32::from_rgb(245, 245, 250) }
-}
 pub fn raised(is_dark: bool) -> egui::Color32 {
     if is_dark { RAISED } else { egui::Color32::from_rgb(255, 255, 255) }
 }
@@ -34,17 +30,31 @@ pub fn text_sec_color(is_dark: bool) -> egui::Color32 {
     if is_dark { TEXT_SEC } else { egui::Color32::from_rgb(70, 75, 90) }
 }
 
-pub fn tag(ui: &mut egui::Ui, label: &str, color: egui::Color32) {
-    let bg = egui::Color32::from_rgba_premultiplied(color.r(), color.g(), color.b(), 20);
-    let bc = egui::Color32::from_rgba_premultiplied(color.r(), color.g(), color.b(), 64);
+pub fn tag(ui: &mut egui::Ui, label: &str, color: egui::Color32, is_dark: bool) {
+    let text_color = if is_dark {
+        color
+    } else {
+        egui::Color32::from_rgb(
+            (color.r() as f32 * 0.35) as u8,
+            (color.g() as f32 * 0.35) as u8,
+            (color.b() as f32 * 0.35) as u8,
+        )
+    };
+    let bg = egui::Color32::from_rgba_premultiplied(
+        (color.r() as u32 * if is_dark { 20 } else { 40 } / 255) as u8,
+        (color.g() as u32 * if is_dark { 20 } else { 40 } / 255) as u8,
+        (color.b() as u32 * if is_dark { 20 } else { 40 } / 255) as u8,
+        if is_dark { 20 } else { 40 },
+    );
+    let bc = egui::Color32::from_rgba_premultiplied(
+        (color.r() as u32 * if is_dark { 64 } else { 120 } / 255) as u8,
+        (color.g() as u32 * if is_dark { 64 } else { 120 } / 255) as u8,
+        (color.b() as u32 * if is_dark { 64 } else { 120 } / 255) as u8,
+        if is_dark { 64 } else { 120 },
+    );
     egui::Frame::new().fill(bg).stroke(egui::Stroke::new(1.0, bc))
         .corner_radius(4).inner_margin(egui::Margin::symmetric(8, 2))
-        .show(ui, |ui| { ui.label(egui::RichText::new(label).size(10.5).color(color).strong()); });
-}
-
-pub fn stock_tag(ui: &mut egui::Ui, qty: i32) {
-    let (l, c) = if qty == 0 { ("Out", BAD) } else if qty <= 10 { ("Low", WARN) } else { ("In Stock", GOOD) };
-    tag(ui, l, c);
+        .show(ui, |ui| { ui.label(egui::RichText::new(label).size(10.5).color(text_color).strong()); });
 }
 
 pub fn stock_bar(ui: &mut egui::Ui, qty: i32, max: i32) {
@@ -116,10 +126,75 @@ pub fn amount_text(ui: &mut egui::Ui, value: &str, color: egui::Color32) {
     ui.label(egui::RichText::new(value).size(12.0).color(color).monospace());
 }
 
-pub fn product_avatar(ui: &mut egui::Ui, initials: &str) {
-    egui::Frame::new().fill(RAISED).stroke(egui::Stroke::new(1.0, BORDER))
-        .corner_radius(6).inner_margin(egui::Margin::symmetric(6, 4))
-        .show(ui, |ui| { ui.label(egui::RichText::new(initials).size(11.0).color(TEXT_DIM).monospace()); });
+pub struct PaginationState {
+    pub page: i64,
+    pub per_page: i64,
+    pub total: i64,
+}
+
+impl PaginationState {
+    pub fn total_pages(&self) -> i64 {
+        if self.total == 0 { 1 } else { (self.total - 1) / self.per_page + 1 }
+    }
+
+    pub fn offset(&self) -> i64 {
+        (self.page - 1).max(0) * self.per_page
+    }
+
+    pub fn next(&mut self) {
+        if self.page < self.total_pages() { self.page += 1; }
+    }
+
+    pub fn prev(&mut self) {
+        if self.page > 1 { self.page -= 1; }
+    }
+
+    pub fn visible_range(&self) -> (i64, i64) {
+        let start = self.offset() + 1;
+        let end = (self.offset() + self.per_page).min(self.total);
+        (start, end)
+    }
+}
+
+impl Default for PaginationState {
+    fn default() -> Self {
+        Self { page: 1, per_page: 10, total: 0 }
+    }
+}
+
+pub fn pagination_ui(
+    ui: &mut egui::Ui,
+    pagination: &mut PaginationState,
+    is_dark: bool,
+) {
+    let total_pages = pagination.total_pages();
+    if pagination.total == 0 { return; }
+    if total_pages <= 1 && pagination.total <= pagination.per_page { return; }
+
+    ui.add_space(4.0);
+    ui.separator();
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        let (start, end) = pagination.visible_range();
+        let label = format!("{}–{} / {}", start, end, pagination.total);
+        ui.colored_label(text_sec_color(is_dark), egui::RichText::new(label).size(14.0).monospace().strong());
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.spacing_mut().item_spacing.x = 4.0;
+            let disabled = pagination.page <= 1;
+            let btn_color = if disabled { text_dim_c(is_dark) } else { text_sec_color(is_dark) };
+            let bg = if disabled { egui::Color32::TRANSPARENT } else { raised(is_dark) };
+            let r = btn_custom(ui, egui::Button::new(egui::RichText::new("<").size(16.0).color(btn_color).strong())
+                .fill(bg).stroke(egui::Stroke::new(1.0, border(is_dark))).corner_radius(4).min_size(egui::vec2(32.0, 28.0)));
+            if !disabled && r.clicked() { pagination.prev(); }
+
+            let disabled = pagination.page >= total_pages;
+            let btn_color = if disabled { text_dim_c(is_dark) } else { text_sec_color(is_dark) };
+            let bg = if disabled { egui::Color32::TRANSPARENT } else { raised(is_dark) };
+            let r = btn_custom(ui, egui::Button::new(egui::RichText::new(">").size(16.0).color(btn_color).strong())
+                .fill(bg).stroke(egui::Stroke::new(1.0, border(is_dark))).corner_radius(4).min_size(egui::vec2(32.0, 28.0)));
+            if !disabled && r.clicked() { pagination.next(); }
+        });
+    });
 }
 
 pub fn setup_fonts(ctx: &egui::Context) {

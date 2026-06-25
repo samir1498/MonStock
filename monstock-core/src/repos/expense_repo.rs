@@ -23,6 +23,36 @@ pub fn find_expenses_by_date_range(
         .load(conn)
 }
 
+pub fn find_expenses_paginated(
+    conn: &mut SqliteConnection,
+    start: &str,
+    end: &str,
+    page: i64,
+    per_page: i64,
+) -> QueryResult<Vec<Expense>> {
+    expenses::table
+        .filter(expenses::date.ge(start))
+        .filter(expenses::date.le(end))
+        .order(expenses::date.desc())
+        .select(Expense::as_select())
+        .offset((page - 1).max(0) * per_page)
+        .limit(per_page)
+        .load(conn)
+}
+
+pub fn count_expenses_by_range(
+    conn: &mut SqliteConnection,
+    start: &str,
+    end: &str,
+) -> QueryResult<i64> {
+    use diesel::dsl::count;
+    expenses::table
+        .filter(expenses::date.ge(start))
+        .filter(expenses::date.le(end))
+        .select(count(expenses::id))
+        .first::<i64>(conn)
+}
+
 pub fn find_expenses_by_category(
     conn: &mut SqliteConnection,
     category: &str,

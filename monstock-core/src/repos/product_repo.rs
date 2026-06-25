@@ -17,6 +17,26 @@ pub fn find_all_products(conn: &mut SqliteConnection) -> QueryResult<Vec<Product
         .load(conn)
 }
 
+pub fn find_products_paginated(
+    conn: &mut SqliteConnection,
+    page: i64,
+    per_page: i64,
+) -> QueryResult<Vec<Product>> {
+    products::table
+        .order(products::name.asc())
+        .select(Product::as_select())
+        .offset((page - 1).max(0) * per_page)
+        .limit(per_page)
+        .load(conn)
+}
+
+pub fn count_products(conn: &mut SqliteConnection) -> QueryResult<i64> {
+    use diesel::dsl::count;
+    products::table
+        .select(count(products::id))
+        .first::<i64>(conn)
+}
+
 pub fn find_product_by_id(conn: &mut SqliteConnection, product_id: i32) -> QueryResult<Option<Product>> {
     products::table
         .find(product_id)
