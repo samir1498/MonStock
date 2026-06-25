@@ -1,3 +1,8 @@
 /target
 monstock-core/monstock.db
 main
+*.db*
+*.db-shm
+*.db-wal
+design-prompt.md
+monstock_ui_v2.html

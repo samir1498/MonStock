@@ -2112,6 +2112,8 @@ dependencies = [
 name = "monstock-desktop"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "diesel",
  "eframe",
  "egui",
  "env_logger",

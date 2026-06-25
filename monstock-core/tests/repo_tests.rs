@@ -1,3 +1,4 @@
+use diesel::prelude::*;
 use monstock_core::db;
 use monstock_core::models::*;
 use monstock_core::repos::*;
@@ -30,6 +31,14 @@ fn make_expense_category(name: &str) -> NewExpenseCategory {
     NewExpenseCategory {
         name: name.to_string(),
     }
+}
+
+fn set_stock(conn: &mut diesel::SqliteConnection, product_id: i32, quantity: i32) {
+    use monstock_core::schema::products;
+    diesel::update(products::table.find(product_id))
+        .set(products::quantity_on_hand.eq(quantity))
+        .execute(conn)
+        .unwrap();
 }
 
 fn make_expense(date: &str, category: &str, amount: f64) -> NewExpense {
@@ -192,7 +201,7 @@ fn setup_po(conn: &mut diesel::SqliteConnection) -> (PurchaseOrder, Vec<Purchase
     )
     .unwrap();
 
-    let items = purchase_order_repo::insert_po_items(
+    let items = purchase_order_repo::insert_purchase_order_items(
         conn,
         &[NewPurchaseOrderItem {
             purchase_order_id: po.id,
@@ -272,7 +281,7 @@ fn test_po_receive_increments_existing_product_stock() {
     )
     .unwrap();
 
-    purchase_order_repo::insert_po_items(
+    purchase_order_repo::insert_purchase_order_items(
         &mut conn,
         &[NewPurchaseOrderItem {
             purchase_order_id: po.id,
@@ -384,6 +393,8 @@ fn test_transaction_lifecycle() {
     .unwrap();
     assert!(tx.id > 0);
 
+    set_stock(&mut conn, product.id, 10);
+
     let items = transaction_repo::insert_transaction_items(
         &mut conn,
         &[NewTransactionItem {
@@ -420,6 +431,7 @@ fn test_daily_sales_total() {
         },
     )
     .unwrap();
+    set_stock(&mut conn, p.id, 10);
     transaction_repo::insert_transaction_items(
         &mut conn,
         &[NewTransactionItem {
@@ -454,6 +466,7 @@ fn test_transaction_count_by_date() {
             },
         )
         .unwrap();
+        set_stock(&mut conn, p.id, 10);
         transaction_repo::insert_transaction_items(
             &mut conn,
             &[NewTransactionItem {
@@ -526,7 +539,7 @@ fn test_line_total_computed_in_po_items() {
     .unwrap();
 
     // line_total is ignored in the caller, computed server-side
-    let items = purchase_order_repo::insert_po_items(
+    let items = purchase_order_repo::insert_purchase_order_items(
         &mut conn,
         &[NewPurchaseOrderItem {
             purchase_order_id: po.id,
@@ -554,6 +567,7 @@ fn test_line_total_computed_in_transaction_items() {
     )
     .unwrap();
 
+    set_stock(&mut conn, p.id, 10);
     let items = transaction_repo::insert_transaction_items(
         &mut conn,
         &[NewTransactionItem {
@@ -591,4 +605,78 @@ fn test_supplier_name_order() {
     let all = supplier_repo::find_all_suppliers(&mut conn).unwrap();
     assert_eq!(all[0].name, "A");
     assert_eq!(all[1].name, "Z");
+}
+
+#[test]
+fn test_stock_decrements_on_sale() {
+    let (mut conn, _f) = setup_db();
+    let product = product_repo::insert_product(&mut conn, &make_product("Widget")).unwrap();
+    set_stock(&mut conn, product.id, 20);
+
+    // Sell 7 units
+    let tx = transaction_repo::insert_transaction(
+        &mut conn,
+        &NewTransaction {
+            timestamp: "2026-06-25T10:00:00".to_string(),
+            total: 0.0,
+        },
+    )
+    .unwrap();
+    transaction_repo::insert_transaction_items(
+        &mut conn,
+        &[NewTransactionItem {
+            transaction_id: tx.id,
+            product_id: product.id,
+            product_name: "Widget".to_string(),
+            quantity: 7,
+            selling_price: 100.0,
+            cost_price: 50.0,
+            line_total: 0.0,
+        }],
+    )
+    .unwrap();
+
+    let p = product_repo::find_product_by_id(&mut conn, product.id).unwrap().unwrap();
+    assert_eq!(p.quantity_on_hand, 13);
+}
+
+#[test]
+fn test_insufficient_stock_rolls_back() {
+    let (mut conn, _f) = setup_db();
+    let product = product_repo::insert_product(&mut conn, &make_product("Fragile")).unwrap();
+    set_stock(&mut conn, product.id, 3);
+
+    let tx = transaction_repo::insert_transaction(
+        &mut conn,
+        &NewTransaction {
+            timestamp: "2026-06-25T12:00:00".to_string(),
+            total: 0.0,
+        },
+    )
+    .unwrap();
+
+    // Trying to sell 10 when stock is only 3
+    let err = transaction_repo::insert_transaction_items(
+        &mut conn,
+        &[NewTransactionItem {
+            transaction_id: tx.id,
+            product_id: product.id,
+            product_name: "Fragile".to_string(),
+            quantity: 10,
+            selling_price: 50.0,
+            cost_price: 30.0,
+            line_total: 0.0,
+        }],
+    )
+    .unwrap_err();
+
+    assert_eq!(err, diesel::result::Error::RollbackTransaction);
+
+    // Stock should remain unchanged
+    let p = product_repo::find_product_by_id(&mut conn, product.id).unwrap().unwrap();
+    assert_eq!(p.quantity_on_hand, 3);
+
+    // No transaction items should exist
+    let items = transaction_repo::find_items_by_transaction(&mut conn, tx.id).unwrap();
+    assert!(items.is_empty());
 }

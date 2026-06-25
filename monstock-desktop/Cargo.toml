@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 monstock-core = { path = "../monstock-core" }
+diesel = { version = "2.2.0", features = ["sqlite"] }
 eframe = "0.34.3"
 egui = "0.34.3"
 env_logger = "0.11.10"
+chrono = { version = "0.4", features = ["serde"] }
