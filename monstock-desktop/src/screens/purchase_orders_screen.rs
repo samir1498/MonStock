@@ -101,7 +101,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
 
     card(ui, is_dark, |ui| {
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(i18n::t("purchase_orders", lang)).size(14.0).strong());
+            ui.label(egui::RichText::new(i18n::t("purchase_orders", lang)).size(14.0).color(text_color(is_dark)).strong());
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if primary_btn(ui, &format!("+ {}", i18n::t("add", lang))).clicked() {
                     state.open_add();
@@ -165,7 +165,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             .show(ui.ctx(), |ui| {
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("supplier", lang)).size(13.0).strong());
+                    ui.label(egui::RichText::new(i18n::t("supplier", lang)).size(13.0).color(text_color(is_dark)).strong());
                     ui.add_space(8.0);
                     let suppliers = monstock_core::repos::supplier_repo::find_all_suppliers(conn).unwrap_or_default();
                     let cur = state.form_supplier_id.and_then(|id| suppliers.iter().find(|s| s.id == id)).map(|s| s.name.clone()).unwrap_or_else(|| "-".to_string());
@@ -176,14 +176,14 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 });
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("notes", lang)).size(13.0).strong());
+                    ui.label(egui::RichText::new(i18n::t("notes", lang)).size(13.0).color(text_color(is_dark)).strong());
                     ui.add_space(8.0);
                     ui.add(egui::TextEdit::singleline(&mut state.form_notes).desired_width(250.0).hint_text(i18n::t("notes", lang)));
                 });
                 ui.add_space(12.0);
                 ui.separator();
                 ui.add_space(4.0);
-                ui.label(egui::RichText::new("Articles").size(14.0).strong());
+                ui.label(egui::RichText::new("Articles").size(14.0).color(text_color(is_dark)).strong());
 
                 egui::ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
                     egui::Grid::new("po_items_grid").striped(true).min_col_width(60.0).show(ui, |ui| {

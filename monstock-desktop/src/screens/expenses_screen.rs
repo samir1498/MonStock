@@ -63,7 +63,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
 
     card(ui, is_dark, |ui| {
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(i18n::t("date", lang)).size(13.0).strong());
+            ui.label(egui::RichText::new(i18n::t("date", lang)).size(13.0).color(text_color(is_dark)).strong());
             ui.add_space(4.0);
             ui.add(egui::TextEdit::singleline(&mut state.filter_start).desired_width(100.0));
             ui.add_space(4.0);
@@ -114,13 +114,13 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             .show(ui.ctx(), |ui| {
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("date", lang)).size(13.0).strong());
+                    ui.label(egui::RichText::new(i18n::t("date", lang)).size(13.0).color(text_color(is_dark)).strong());
                     ui.add_space(8.0);
                     ui.add(egui::TextEdit::singleline(&mut state.form_date).desired_width(120.0));
                 });
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Categorie").size(13.0).strong());
+                    ui.label(egui::RichText::new("Categorie").size(13.0).color(text_color(is_dark)).strong());
                     ui.add_space(8.0);
                     let categories = monstock_core::repos::expense_category_repo::find_all_categories(conn).unwrap_or_default();
                     egui::ComboBox::from_id_salt("expense_category").selected_text(&state.form_category).width(200.0).show_ui(ui, |ui| {
@@ -129,13 +129,13 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 });
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("notes", lang)).size(13.0).strong());
+                    ui.label(egui::RichText::new(i18n::t("notes", lang)).size(13.0).color(text_color(is_dark)).strong());
                     ui.add_space(8.0);
                     ui.add(egui::TextEdit::singleline(&mut state.form_description).desired_width(200.0).hint_text(i18n::t("notes", lang)));
                 });
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Montant").size(13.0).strong());
+                    ui.label(egui::RichText::new("Montant").size(13.0).color(text_color(is_dark)).strong());
                     ui.add_space(8.0);
                     ui.add(egui::TextEdit::singleline(&mut state.form_amount).desired_width(100.0));
                     ui.label(" DA");

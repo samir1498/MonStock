@@ -90,7 +90,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
 
     card(ui, is_dark, |ui| {
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(i18n::t("products", lang)).size(14.0).strong());
+            ui.label(egui::RichText::new(i18n::t("products", lang)).size(14.0).color(text_color(is_dark)).strong());
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if primary_btn(ui, &format!("+ {}", i18n::t("add", lang))).clicked() {
                     state.open_add();
@@ -127,7 +127,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                                     product_avatar(ui, &initials(&p.name));
                                     ui.add_space(4.0);
                                     ui.vertical(|ui| {
-                                        ui.label(egui::RichText::new(&p.name).size(12.5).strong());
+                                        ui.label(egui::RichText::new(&p.name).size(12.5).color(text_color(is_dark)).strong());
                                         ui.label(egui::RichText::new(format!("PRD-{:03}", p.id)).size(11.0).monospace().color(TEXT_DIM));
                                     });
                                 });
@@ -175,26 +175,26 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             .show(ui.ctx(), |ui| {
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("name", lang)).size(13.0).strong());
+                    ui.label(egui::RichText::new(i18n::t("name", lang)).size(13.0).color(text_color(is_dark)).strong());
                     ui.add_space(8.0);
                     ui.text_edit_singleline(&mut state.form_name);
                 });
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("barcode", lang)).size(13.0).strong());
+                    ui.label(egui::RichText::new(i18n::t("barcode", lang)).size(13.0).color(text_color(is_dark)).strong());
                     ui.add_space(8.0);
                     ui.text_edit_singleline(&mut state.form_barcode);
                 });
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("cost_price", lang)).size(13.0).strong());
+                    ui.label(egui::RichText::new(i18n::t("cost_price", lang)).size(13.0).color(text_color(is_dark)).strong());
                     ui.add_space(8.0);
                     ui.add(egui::TextEdit::singleline(&mut state.form_cost_price).desired_width(80.0));
                     ui.label(" DA");
                 });
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("selling_price", lang)).size(13.0).strong());
+                    ui.label(egui::RichText::new(i18n::t("selling_price", lang)).size(13.0).color(text_color(is_dark)).strong());
                     ui.add_space(8.0);
                     ui.add(egui::TextEdit::singleline(&mut state.form_selling_price).desired_width(80.0));
                     ui.label(" DA");

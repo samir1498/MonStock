@@ -27,6 +27,12 @@ pub fn border(is_dark: bool) -> egui::Color32 {
 pub fn text_dim_c(is_dark: bool) -> egui::Color32 {
     if is_dark { TEXT_DIM } else { egui::Color32::from_rgb(150, 150, 160) }
 }
+pub fn text_color(is_dark: bool) -> egui::Color32 {
+    if is_dark { TEXT } else { egui::Color32::from_rgb(20, 20, 28) }
+}
+pub fn text_sec_color(is_dark: bool) -> egui::Color32 {
+    if is_dark { TEXT_SEC } else { egui::Color32::from_rgb(70, 75, 90) }
+}
 
 pub fn tag(ui: &mut egui::Ui, label: &str, color: egui::Color32) {
     let bg = egui::Color32::from_rgba_premultiplied(color.r(), color.g(), color.b(), 20);
@@ -65,7 +71,7 @@ pub fn page_header(ui: &mut egui::Ui, icon: &str, title: &str, subtitle: &str, i
         ui.label(egui::RichText::new(icon).size(20.0).color(ACCENT).monospace());
         ui.add_space(10.0);
         ui.vertical(|ui| {
-            ui.label(egui::RichText::new(title).size(20.0).strong());
+            ui.label(egui::RichText::new(title).size(20.0).color(text_color(is_dark)).strong());
             ui.add_space(2.0);
             ui.label(egui::RichText::new(subtitle).size(12.0).color(text_dim_c(is_dark)));
         });

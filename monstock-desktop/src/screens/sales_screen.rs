@@ -67,7 +67,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
 
     card(ui, is_dark, |ui| {
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(format!("{} {}", i18n::t("sales", lang), i18n::t("overview", lang))).size(14.0).strong());
+            ui.label(egui::RichText::new(format!("{} {}", i18n::t("sales", lang), i18n::t("overview", lang))).size(14.0).color(text_color(is_dark)).strong());
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if primary_btn(ui, &format!("+ {}", i18n::t("add", lang))).clicked() { state.open_sale_modal(); }
             });
@@ -77,7 +77,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
     ui.add_space(8.0);
     card(ui, is_dark, |ui| {
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(i18n::t("date", lang)).size(13.0).strong());
+            ui.label(egui::RichText::new(i18n::t("date", lang)).size(13.0).color(text_color(is_dark)).strong());
             ui.add_space(8.0);
             ui.add(egui::TextEdit::singleline(&mut state.filter_date).desired_width(120.0));
             ui.add_space(12.0);
@@ -115,7 +115,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             .fixed_size([500.0, 450.0]).collapsible(false).title_bar(true).resizable(false).movable(false)
             .show(ui.ctx(), |ui| {
                 ui.add_space(8.0);
-                ui.label(egui::RichText::new("Produits disponibles").size(14.0).strong());
+                ui.label(egui::RichText::new("Produits disponibles").size(14.0).color(text_color(is_dark)).strong());
                 ui.add_space(4.0);
 
                 let products = monstock_core::services::product_service::find_all(conn).unwrap_or_default();
@@ -128,10 +128,10 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                         ui.end_row();
 
                         for p in &products {
-                            ui.label(egui::RichText::new(&p.name).size(13.0));
+                            ui.label(egui::RichText::new(&p.name).size(13.0).color(text_color(is_dark)));
                             let sc = if p.quantity_on_hand <= 5 { BAD } else { TEXT_SEC };
                             mono_value(ui, &format!("{}", p.quantity_on_hand), sc);
-                            amount_text(ui, &format!("{:.0} DA", p.selling_price), TEXT);
+                            amount_text(ui, &format!("{:.0} DA", p.selling_price), text_color(is_dark));
                             if btn_custom(ui, egui::Button::new(egui::RichText::new("+").color(TEXT)).fill(ACCENT).corner_radius(4).min_size(egui::vec2(24.0, 20.0))).clicked() {
                                 state.add_item(p.id, &p.name, p.selling_price, p.cost_price);
                             }
@@ -141,7 +141,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 });
 
                 ui.add_space(8.0); ui.separator(); ui.add_space(4.0);
-                ui.label(egui::RichText::new("Articles saisis").size(14.0).strong());
+                ui.label(egui::RichText::new("Articles saisis").size(14.0).color(text_color(is_dark)).strong());
 
                 egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
                     egui::Grid::new("sale_items_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
@@ -153,7 +153,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
 
                         let mut remove_idx: Option<usize> = None;
                         for (idx, item) in state.form_items.iter_mut().enumerate() {
-                            ui.label(egui::RichText::new(&item.product_name).size(13.0));
+                            ui.label(egui::RichText::new(&item.product_name).size(13.0).color(text_color(is_dark)));
                             ui.add(egui::TextEdit::singleline(&mut item.quantity).desired_width(50.0));
                             ui.add(egui::TextEdit::singleline(&mut item.selling_price).desired_width(60.0));
                             let r = btn_custom(ui, egui::Button::new(egui::RichText::new("X").size(12.0).color(TEXT_DIM)).fill(egui::Color32::TRANSPARENT).min_size(egui::vec2(20.0, 20.0)));
