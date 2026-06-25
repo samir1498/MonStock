@@ -61,7 +61,7 @@ impl eframe::App for MonStockApp {
         let active_bg = if is_dark { RAISED } else { egui::Color32::from_rgb(255, 255, 255) };
 
         egui::Panel::left("sidebar")
-            .default_size(220.0)
+            .default_size(240.0)
             .resizable(false)
             .frame(egui::Frame::new().fill(sidebar_bg))
             .show_inside(ui, |ui| {
@@ -69,8 +69,8 @@ impl eframe::App for MonStockApp {
                 ui.horizontal(|ui| {
                     ui.add_space(24.0);
                     egui::Frame::new()
-                        .fill(RAISED)
-                        .stroke(egui::Stroke::new(1.5, BORDER_STRONG))
+                        .fill(raised(is_dark))
+                        .stroke(egui::Stroke::new(1.5, border(is_dark)))
                         .corner_radius(6)
                         .inner_margin(egui::Margin::symmetric(6, 4))
                         .show(ui, |ui| {
@@ -83,10 +83,10 @@ impl eframe::App for MonStockApp {
                     ui.add_space(6.0);
                     ui.vertical(|ui| {
                         ui.label(egui::RichText::new(t("monstock", self.lang))
-                            .size(17.0).strong());
+                            .size(17.0).color(text_color(is_dark)).strong());
                         ui.add_space(1.0);
                         ui.label(egui::RichText::new(t("app_subtitle", self.lang))
-                            .size(12.0).color(TEXT_DIM));
+                            .size(11.0).color(text_dim_c(is_dark)));
                     });
                 });
 
@@ -148,15 +148,20 @@ impl eframe::App for MonStockApp {
                     ui.add_space(4.0);
 
                     let theme_text = if is_dark { t("light_mode", self.lang) } else { t("dark_mode", self.lang) };
-                    if system_btn(ui, SystemIcon::SunMoon, &theme_text, nav_text, is_dark, sidebar_bg).clicked() {
-                        let mut visuals = ui.ctx().global_style().visuals.clone();
-                        visuals.dark_mode = !is_dark;
+                    if system_btn(ui, SystemIcon::SunMoon, &theme_text, nav_text, is_dark).clicked() {
+                        let mut visuals = if is_dark {
+                            egui::Visuals::light()
+                        } else {
+                            egui::Visuals::dark()
+                        };
+                        visuals.selection.stroke = egui::Stroke::new(1.0, ACCENT);
+                        visuals.selection.bg_fill = ACCENT_DIM;
                         ui.ctx().set_visuals(visuals);
                     }
 
                     let lang_label = self.lang.label();
                     let lang_text = format!("{}: {}", t("language", self.lang), lang_label);
-                    if system_btn(ui, SystemIcon::Globe, &lang_text, nav_text, is_dark, sidebar_bg).clicked() {
+                    if system_btn(ui, SystemIcon::Globe, &lang_text, nav_text, is_dark).clicked() {
                         self.lang = self.lang.toggle();
                     }
                 });
@@ -192,26 +197,66 @@ enum SystemIcon {
 }
 
 fn draw_sun(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
-    painter.circle_filled(center, 3.5, color);
+    painter.circle_stroke(center, 3.5, egui::Stroke::new(1.2, color));
     for i in 0..8 {
         let angle = (i as f32) * std::f32::consts::TAU / 8.0;
-        let start = center + egui::vec2(angle.cos() * 5.0, angle.sin() * 5.0);
+        let start = center + egui::vec2(angle.cos() * 5.5, angle.sin() * 5.5);
         let end = center + egui::vec2(angle.cos() * 7.5, angle.sin() * 7.5);
         painter.line_segment([start, end], egui::Stroke::new(1.0, color));
     }
 }
 
-fn draw_moon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32, bg_color: egui::Color32) {
-    painter.circle_filled(center, 5.0, color);
-    painter.circle_filled(center + egui::vec2(2.0, -1.0), 4.5, bg_color);
+fn draw_moon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
+    let mut points = Vec::new();
+    let steps = 16;
+    for i in 0..=steps {
+        let angle = -std::f32::consts::FRAC_PI_2 + (i as f32) * std::f32::consts::PI / (steps as f32);
+        let x = angle.cos() * 6.0;
+        let y = angle.sin() * 6.0;
+        points.push(center + egui::vec2(x, y));
+    }
+    for i in (0..=steps).rev() {
+        let angle = -std::f32::consts::FRAC_PI_2 + (i as f32) * std::f32::consts::PI / (steps as f32);
+        let x = angle.cos() * 4.5 + 2.0;
+        let y = angle.sin() * 5.0;
+        points.push(center + egui::vec2(x, y));
+    }
+    painter.add(egui::Shape::Path(egui::epaint::PathShape {
+        points,
+        closed: true,
+        fill: color,
+        stroke: Default::default(),
+    }));
 }
 
 fn draw_globe(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
-    painter.circle_stroke(center, 5.5, egui::Stroke::new(1.0, color));
-    // horizontal line
-    painter.line_segment([center - egui::vec2(5.5, 0.0), center + egui::vec2(5.5, 0.0)], egui::Stroke::new(1.0, color));
-    // vertical line
-    painter.line_segment([center - egui::vec2(0.0, 5.5), center + egui::vec2(0.0, 5.5)], egui::Stroke::new(1.0, color));
+    let stroke = egui::Stroke::new(1.0, color);
+    painter.circle_stroke(center, 6.0, stroke);
+    painter.line_segment([center - egui::vec2(6.0, 0.0), center + egui::vec2(6.0, 0.0)], stroke);
+    painter.line_segment([center - egui::vec2(0.0, 6.0), center + egui::vec2(0.0, 6.0)], stroke);
+    
+    let top = center - egui::vec2(0.0, 6.0);
+    let bottom = center + egui::vec2(0.0, 6.0);
+    
+    // Draw left curved vertical line
+    let mut left_points = Vec::new();
+    for i in 0..=10 {
+        let t = i as f32 / 10.0;
+        let mt = 1.0 - t;
+        let p = top.to_vec2() * (mt * mt) + (center - egui::vec2(3.5, 0.0)).to_vec2() * (2.0 * mt * t) + bottom.to_vec2() * (t * t);
+        left_points.push(egui::pos2(p.x, p.y));
+    }
+    painter.line(left_points, stroke);
+
+    // Draw right curved vertical line
+    let mut right_points = Vec::new();
+    for i in 0..=10 {
+        let t = i as f32 / 10.0;
+        let mt = 1.0 - t;
+        let p = top.to_vec2() * (mt * mt) + (center + egui::vec2(3.5, 0.0)).to_vec2() * (2.0 * mt * t) + bottom.to_vec2() * (t * t);
+        right_points.push(egui::pos2(p.x, p.y));
+    }
+    painter.line(right_points, stroke);
 }
 
 fn system_btn(
@@ -220,7 +265,6 @@ fn system_btn(
     label: &str,
     text_color: egui::Color32,
     is_dark: bool,
-    sidebar_bg: egui::Color32,
 ) -> egui::Response {
     let frame = egui::Frame::new()
         .fill(egui::Color32::TRANSPARENT)
@@ -238,7 +282,7 @@ fn system_btn(
                         if is_dark {
                             draw_sun(painter, center, text_color);
                         } else {
-                            draw_moon(painter, center, text_color, sidebar_bg);
+                            draw_moon(painter, center, text_color);
                         }
                     }
                     SystemIcon::Globe => {
@@ -276,9 +320,14 @@ fn main() -> eframe::Result {
         options,
         Box::new(|cc| {
             style::setup_fonts(&cc.egui_ctx);
+            
+            // Set default dark mode visuals explicitly
+            let mut visuals = egui::Visuals::dark();
+            visuals.selection.stroke = egui::Stroke::new(1.0, ACCENT);
+            visuals.selection.bg_fill = ACCENT_DIM;
+            cc.egui_ctx.set_visuals(visuals);
+            
             let mut s = (*cc.egui_ctx.global_style()).clone();
-            s.visuals.selection.stroke = egui::Stroke::new(1.0, ACCENT);
-            s.visuals.selection.bg_fill = ACCENT_DIM;
             s.spacing.item_spacing = egui::vec2(8.0, 6.0);
             cc.egui_ctx.set_global_style(s);
             Ok(Box::new(MonStockApp::new(conn)))
