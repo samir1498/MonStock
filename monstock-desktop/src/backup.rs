@@ -4,7 +4,7 @@ use std::fs;
 const BACKUP_DIR: &str = "monstock/backups";
 const MAX_BACKUP_DAYS: i64 = 30;
 
-fn backup_dir() -> PathBuf {
+pub fn backup_dir() -> PathBuf {
     let base = dirs::data_dir().expect("Cannot find data directory");
     base.join(BACKUP_DIR)
 }
@@ -24,7 +24,7 @@ pub fn last_backup_date() -> Option<String> {
         let name = entry.file_name().to_string_lossy().to_string();
         if name.starts_with("monstock_") && name.ends_with(".db") {
             let date = name.trim_start_matches("monstock_").trim_end_matches(".db").to_string();
-            if latest.as_ref().map_or(true, |l| date > *l) {
+            if latest.as_ref().is_none_or(|l| date > *l) {
                 latest = Some(date);
             }
         }
@@ -34,9 +34,8 @@ pub fn last_backup_date() -> Option<String> {
 
 pub fn create_backup(db_path: &str) -> std::io::Result<PathBuf> {
     let dir = ensure_backup_dir()?;
-    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let backup_path = dir.join(format!("monstock_{}.db", today));
-    if backup_path.exists() { return Ok(backup_path); }
+    let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
+    let backup_path = dir.join(format!("monstock_{}.db", now));
     fs::copy(db_path, &backup_path)?;
     Ok(backup_path)
 }

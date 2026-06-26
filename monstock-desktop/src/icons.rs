@@ -10,7 +10,7 @@ fn load_icon(ctx: &egui::Context, name: &str, bytes: &[u8]) -> egui::TextureHand
     let tinted = tinted_svg(bytes, egui::Color32::WHITE);
     let options = Default::default();
     let size_hint = egui::SizeHint::Height(24);
-    let image = load_svg_bytes_with_size(&tinted, size_hint, &options).expect(&format!("SVG icon {name}"));
+    let image = load_svg_bytes_with_size(&tinted, size_hint, &options).unwrap_or_else(|_| panic!("SVG icon {name}"));
     ctx.load_texture(name, image, Default::default())
 }
 

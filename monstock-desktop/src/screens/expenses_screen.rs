@@ -1,6 +1,7 @@
 use egui;
 use crate::i18n::{self, Lang};
 use crate::style::*;
+use crate::components;
 
 pub struct ExpensesState {
     pub show_modal: bool,
@@ -84,75 +85,59 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
     ui.add_space(8.0);
     card(ui, is_dark, |ui| {
         state.pagination.total = monstock_core::services::expense_service::count_by_date_range(conn, &state.filter_start, &state.filter_end).unwrap_or(0);
-        let expenses = monstock_core::services::expense_service::find_paginated(conn, &state.filter_start, &state.filter_end, state.pagination.page, state.pagination.per_page);
-        match expenses {
-            Ok(list) => {
-                egui::Grid::new("expenses_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
-                    table_header(ui, i18n::t("date", lang));
-                    table_header(ui, i18n::t("category", lang));
-                    table_header(ui, i18n::t("notes", lang));
-                    table_header(ui, i18n::t("amount", lang));
-                    table_header(ui, "");
-                    ui.end_row();
-
-                    for e in &list {
-                        mono_value(ui, &e.date, TEXT_SEC);
-                        tag(ui, &e.category, ACCENT, is_dark);
-                        ui.label(egui::RichText::new(e.description.as_deref().unwrap_or("-")).size(13.0).color(TEXT_SEC));
-                        amount_text(ui, &format!("{:.0} DA", e.amount), BAD);
-                        let d = btn_custom(ui, egui::Button::new(egui::RichText::new("X").size(10.0).color(TEXT_DIM)).fill(egui::Color32::TRANSPARENT).min_size(egui::vec2(20.0, 20.0)));
-                        if d.clicked() { state.delete(conn, e.id); }
-                        ui.end_row();
-                    }
-                });
-                pagination_ui(ui, &mut state.pagination, is_dark);
-            }
-            Err(e) => { ui.colored_label(BAD, format!("{}: {}", i18n::t("error", lang), e)); }
-        }
+        let (expenses, error) = match monstock_core::services::expense_service::find_paginated(conn, &state.filter_start, &state.filter_end, state.pagination.page, state.pagination.per_page) {
+            Ok(list) => (list, None),
+            Err(e) => (vec![], Some(format!("{}: {}", i18n::t("error", lang), e))),
+        };
+        components::data_table(ui, "expenses_grid", &[
+            i18n::t("date", lang), i18n::t("category", lang), i18n::t("notes", lang),
+            i18n::t("amount", lang), "",
+        ], &expenses, error.as_deref(), |ui, e| {
+            mono_value(ui, &e.date, TEXT_SEC);
+            tag(ui, &e.category, ACCENT, is_dark);
+            ui.label(egui::RichText::new(e.description.as_deref().unwrap_or("-")).size(13.0).color(TEXT_SEC));
+            amount_text(ui, &format!("{:.0} DA", e.amount), BAD);
+            if components::delete_btn(ui, is_dark).clicked() { state.delete(conn, e.id); }
+        });
+        pagination_ui(ui, &mut state.pagination, is_dark);
     });
 
     if state.show_modal {
-        egui::Window::new(format!("{} {}", i18n::t("add", lang), i18n::t("expenses", lang)))
-            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .fixed_size([400.0, 300.0]).collapsible(false).title_bar(true).resizable(false).movable(false)
-            .show(ui.ctx(), |ui| {
+        let title = format!("{} {}", i18n::t("add", lang), i18n::t("expenses", lang));
+        let err = state.form_error.clone();
+        components::modal_window(ui.ctx(), &title, [400.0, 300.0], |ui| {
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(i18n::t("date", lang)).size(13.0).color(text_color(is_dark)).strong());
                 ui.add_space(8.0);
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("date", lang)).size(13.0).color(text_color(is_dark)).strong());
-                    ui.add_space(8.0);
-                    ui.add(egui::TextEdit::singleline(&mut state.form_date).desired_width(120.0));
-                });
-                ui.add_space(4.0);
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("category", lang)).size(13.0).color(text_color(is_dark)).strong());
-                    ui.add_space(8.0);
-                    let categories = monstock_core::repos::expense_category_repo::find_all_categories(conn).unwrap_or_default();
-                    egui::ComboBox::from_id_salt("expense_category").selected_text(&state.form_category).width(200.0).show_ui(ui, |ui| {
-                        for c in &categories { ui.selectable_value(&mut state.form_category, c.name.clone(), &c.name); }
-                    });
-                });
-                ui.add_space(4.0);
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("notes", lang)).size(13.0).color(text_color(is_dark)).strong());
-                    ui.add_space(8.0);
-                    ui.add(egui::TextEdit::singleline(&mut state.form_description).desired_width(200.0).hint_text(i18n::t("notes", lang)));
-                });
-                ui.add_space(4.0);
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(i18n::t("amount", lang)).size(13.0).color(text_color(is_dark)).strong());
-                    ui.add_space(8.0);
-                    ui.add(egui::TextEdit::singleline(&mut state.form_amount).desired_width(100.0));
-                    ui.label(" DA");
-                });
-                ui.add_space(12.0);
-                if let Some(ref err) = state.form_error { ui.colored_label(BAD, err); ui.add_space(4.0); }
-                ui.horizontal(|ui| {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if btn(ui, i18n::t("save", lang)).clicked() { state.save(conn); }
-                        ui.add_space(8.0);
-                        if btn(ui, i18n::t("cancel", lang)).clicked() { state.close_modal(); }
-                    });
+                ui.add(egui::TextEdit::singleline(&mut state.form_date).desired_width(120.0));
+            });
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(i18n::t("category", lang)).size(13.0).color(text_color(is_dark)).strong());
+                ui.add_space(8.0);
+                let categories = monstock_core::repos::expense_category_repo::find_all_categories(conn).unwrap_or_default();
+                egui::ComboBox::from_id_salt("expense_category").selected_text(&state.form_category).width(200.0).show_ui(ui, |ui| {
+                    for c in &categories { ui.selectable_value(&mut state.form_category, c.name.clone(), &c.name); }
                 });
             });
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(i18n::t("notes", lang)).size(13.0).color(text_color(is_dark)).strong());
+                ui.add_space(8.0);
+                ui.add(egui::TextEdit::singleline(&mut state.form_description).desired_width(200.0).hint_text(i18n::t("notes", lang)));
+            });
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(i18n::t("amount", lang)).size(13.0).color(text_color(is_dark)).strong());
+                ui.add_space(8.0);
+                ui.add(egui::TextEdit::singleline(&mut state.form_amount).desired_width(100.0));
+                ui.label(" DA");
+            });
+            components::modal_actions(ui, lang, err.as_deref(), |is_save| {
+                if is_save { state.save(conn); }
+                else { state.close_modal(); }
+            });
+        });
     }
 }

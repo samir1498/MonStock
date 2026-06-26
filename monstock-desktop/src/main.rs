@@ -5,6 +5,8 @@ mod screens;
 mod style;
 mod icons;
 mod backup;
+mod barcode_scanner;
+mod components;
 
 use i18n::{t, Lang};
 use screens::*;
@@ -17,6 +19,7 @@ pub enum Screen {
     PurchaseOrders,
     Sales,
     Expenses,
+    Settings,
 }
 
 const NAV_ITEMS: &[(Screen, &str, &str)] = &[
@@ -25,6 +28,7 @@ const NAV_ITEMS: &[(Screen, &str, &str)] = &[
     (Screen::PurchaseOrders, "purchase_orders", "03"),
     (Screen::Sales, "sales", "04"),
     (Screen::Expenses, "expenses", "05"),
+    (Screen::Settings, "system", "06"),
 ];
 
 struct MonStockApp {
@@ -32,18 +36,21 @@ struct MonStockApp {
     screen: Screen,
     lang: Lang,
     icons: icons::Icons,
+    db_path: String,
     products_state: screens::products_screen::ProductsState,
     purchase_orders_state: screens::purchase_orders_screen::PurchaseOrdersState,
     sales_state: screens::sales_screen::SalesState,
     expenses_state: screens::expenses_screen::ExpensesState,
     dashboard_state: screens::dashboard_screen::DashboardState,
+    settings_state: screens::settings_screen::SettingsState,
 }
 
 impl MonStockApp {
-    fn new(conn: diesel::SqliteConnection, icons: icons::Icons) -> Self {
+    fn new(conn: diesel::SqliteConnection, icons: icons::Icons, db_path: String) -> Self {
         Self {
             conn,
             icons,
+            db_path,
             screen: Screen::Dashboard,
             lang: Lang::Fr,
             products_state: Default::default(),
@@ -51,6 +58,7 @@ impl MonStockApp {
             sales_state: Default::default(),
             expenses_state: Default::default(),
             dashboard_state: Default::default(),
+            settings_state: Default::default(),
         }
     }
 }
@@ -153,7 +161,7 @@ impl eframe::App for MonStockApp {
 
                     let theme_text = if is_dark { t("light_mode", self.lang) } else { t("dark_mode", self.lang) };
                     let icon = if is_dark { &self.icons.sun } else { &self.icons.moon };
-                    if system_btn(ui, icon, &theme_text, nav_text).clicked() {
+                    if system_btn(ui, icon, theme_text, nav_text).clicked() {
                         let mut visuals = if is_dark {
                             egui::Visuals::light()
                         } else {
@@ -194,6 +202,8 @@ impl eframe::App for MonStockApp {
                         is_dark, &mut self.sales_state),
                     Screen::Expenses => expenses_screen::show(ui, &mut self.conn, self.lang,
                         is_dark, &mut self.expenses_state),
+                    Screen::Settings => settings_screen::show(ui, self.lang,
+                        is_dark, &mut self.settings_state, &self.db_path),
                 }
                 });
             });
@@ -258,7 +268,7 @@ fn main() -> eframe::Result {
             let mut s = (*cc.egui_ctx.global_style()).clone();
             s.spacing.item_spacing = egui::vec2(8.0, 6.0);
             cc.egui_ctx.set_global_style(s);
-            Ok(Box::new(MonStockApp::new(conn, icons)))
+            Ok(Box::new(MonStockApp::new(conn, icons, db_path.to_string())))
         }),
     )
 }

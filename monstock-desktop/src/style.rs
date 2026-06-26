@@ -1,5 +1,3 @@
-use egui;
-
 pub const BG: egui::Color32 = egui::Color32::from_rgb(10, 10, 12);
 pub const SURFACE: egui::Color32 = egui::Color32::from_rgb(17, 17, 20);
 pub const RAISED: egui::Color32 = egui::Color32::from_rgb(22, 22, 26);

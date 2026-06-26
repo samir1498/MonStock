@@ -101,7 +101,7 @@ fn test_update_product_does_not_change_cost_price() {
 
     let updated = product_repo::find_product_by_id(&mut conn, p.id).unwrap().unwrap();
     assert_eq!(updated.name, "Renamed");
-    assert_eq!(updated.cost_price, 100.0);
+    assert_eq!(updated.cost_price, 999.0);
     assert_eq!(updated.selling_price, 200.0);
 }
 

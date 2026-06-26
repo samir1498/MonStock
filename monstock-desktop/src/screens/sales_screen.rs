@@ -1,6 +1,7 @@
 use egui;
 use crate::i18n::{self, Lang};
 use crate::style::*;
+use crate::components;
 
 pub struct SalesState {
     pub show_sale_modal: bool,
@@ -91,92 +92,76 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
     ui.add_space(8.0);
     card(ui, is_dark, |ui| {
         state.pagination.total = monstock_core::services::sale_service::count_transactions_by_date(conn, &state.filter_date).unwrap_or(0);
-        let transactions = monstock_core::services::sale_service::find_transactions_paginated(conn, &state.filter_date, state.pagination.page, state.pagination.per_page);
-        match transactions {
-            Ok(list) => {
-                egui::Grid::new("sales_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
-                    table_header(ui, "ID");
-                    table_header(ui, i18n::t("date", lang));
-                    table_header(ui, i18n::t("total", lang));
-                    ui.end_row();
-
-                    for tx in &list {
-                        mono_value(ui, &format!("{}", tx.id), TEXT);
-                        mono_value(ui, &tx.timestamp, TEXT_SEC);
-                        amount_text(ui, &format!("{:.0} DA", tx.total), TEXT);
-                        ui.end_row();
-                    }
-                });
-                pagination_ui(ui, &mut state.pagination, is_dark);
-            }
-            Err(e) => { ui.colored_label(BAD, format!("{}: {}", i18n::t("error", lang), e)); }
-        }
+        let (transactions, error) = match monstock_core::services::sale_service::find_transactions_paginated(conn, &state.filter_date, state.pagination.page, state.pagination.per_page) {
+            Ok(list) => (list, None),
+            Err(e) => (vec![], Some(format!("{}: {}", i18n::t("error", lang), e))),
+        };
+        components::data_table(ui, "sales_grid", &["ID", i18n::t("date", lang), i18n::t("total", lang)],
+            &transactions, error.as_deref(), |ui, tx| {
+            mono_value(ui, &format!("{}", tx.id), TEXT);
+            mono_value(ui, &tx.timestamp, TEXT_SEC);
+            amount_text(ui, &format!("{:.0} DA", tx.total), TEXT);
+        });
+        pagination_ui(ui, &mut state.pagination, is_dark);
     });
 
     if state.show_sale_modal {
-        egui::Window::new(format!("{} {}", i18n::t("add", lang), i18n::t("sales", lang)))
-            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .fixed_size([500.0, 450.0]).collapsible(false).title_bar(true).resizable(false).movable(false)
-            .show(ui.ctx(), |ui| {
-                ui.add_space(8.0);
-                ui.label(egui::RichText::new(i18n::t("available_products", lang)).size(14.0).color(text_color(is_dark)).strong());
-                ui.add_space(4.0);
+        let title = format!("{} {}", i18n::t("add", lang), i18n::t("sales", lang));
+        components::modal_window(ui.ctx(), &title, [500.0, 450.0], |ui| {
+            ui.add_space(8.0);
+            ui.label(egui::RichText::new(i18n::t("available_products", lang)).size(14.0).color(text_color(is_dark)).strong());
+            ui.add_space(4.0);
 
-                let products = monstock_core::services::product_service::find_all(conn).unwrap_or_default();
-                egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
-                    egui::Grid::new("product_picker_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
-                        table_header(ui, i18n::t("product", lang));
-                        table_header(ui, i18n::t("stock", lang));
-                        table_header(ui, i18n::t("unit_price", lang));
-                        table_header(ui, "");
-                        ui.end_row();
+            let products = monstock_core::services::product_service::find_all(conn).unwrap_or_default();
+            egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
+                egui::Grid::new("product_picker_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
+                    table_header(ui, i18n::t("product", lang));
+                    table_header(ui, i18n::t("stock", lang));
+                    table_header(ui, i18n::t("unit_price", lang));
+                    table_header(ui, "");
+                    ui.end_row();
 
-                        for p in &products {
-                            ui.label(egui::RichText::new(&p.name).size(13.0).color(text_color(is_dark)));
-                            let sc = if p.quantity_on_hand <= 5 { BAD } else { TEXT_SEC };
-                            mono_value(ui, &format!("{}", p.quantity_on_hand), sc);
-                            amount_text(ui, &format!("{:.0} DA", p.selling_price), text_color(is_dark));
-                            if btn_custom(ui, egui::Button::new(egui::RichText::new("+").color(TEXT)).fill(ACCENT).corner_radius(4).min_size(egui::vec2(24.0, 20.0))).clicked() {
-                                state.add_item(p.id, &p.name, p.selling_price, p.cost_price);
-                            }
-                            ui.end_row();
+                    for p in &products {
+                        ui.label(egui::RichText::new(&p.name).size(13.0).color(text_color(is_dark)));
+                        let sc = if p.quantity_on_hand <= 5 { BAD } else { TEXT_SEC };
+                        mono_value(ui, &format!("{}", p.quantity_on_hand), sc);
+                        amount_text(ui, &format!("{:.0} DA", p.selling_price), text_color(is_dark));
+                        if btn_custom(ui, egui::Button::new(egui::RichText::new("+").color(TEXT)).fill(ACCENT).corner_radius(4).min_size(egui::vec2(24.0, 20.0))).clicked() {
+                            state.add_item(p.id, &p.name, p.selling_price, p.cost_price);
                         }
-                    });
-                });
-
-                ui.add_space(8.0); ui.separator(); ui.add_space(4.0);
-                ui.label(egui::RichText::new(i18n::t("entered_items", lang)).size(14.0).color(text_color(is_dark)).strong());
-
-                egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
-                    egui::Grid::new("sale_items_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
-                        table_header(ui, i18n::t("product", lang));
-                        table_header(ui, i18n::t("quantity", lang));
-                        table_header(ui, i18n::t("unit_price", lang));
-                        table_header(ui, "");
                         ui.end_row();
-
-                        let mut remove_idx: Option<usize> = None;
-                        for (idx, item) in state.form_items.iter_mut().enumerate() {
-                            ui.label(egui::RichText::new(&item.product_name).size(13.0).color(text_color(is_dark)));
-                            ui.add(egui::TextEdit::singleline(&mut item.quantity).desired_width(50.0));
-                            ui.add(egui::TextEdit::singleline(&mut item.selling_price).desired_width(60.0));
-                            let r = btn_custom(ui, egui::Button::new(egui::RichText::new("X").size(12.0).color(TEXT_DIM)).fill(egui::Color32::TRANSPARENT).min_size(egui::vec2(20.0, 20.0)));
-                            if r.clicked() { remove_idx = Some(idx); }
-                            ui.end_row();
-                        }
-                        if let Some(idx) = remove_idx { state.remove_item(idx); }
-                    });
-                });
-
-                ui.add_space(12.0);
-                if let Some(ref err) = state.form_error { ui.colored_label(BAD, err); ui.add_space(4.0); }
-                ui.horizontal(|ui| {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if btn(ui, i18n::t("save", lang)).clicked() { state.save(conn); }
-                        ui.add_space(8.0);
-                        if btn(ui, i18n::t("cancel", lang)).clicked() { state.close_modal(); }
-                    });
+                    }
                 });
             });
+
+            ui.add_space(8.0); ui.separator(); ui.add_space(4.0);
+            ui.label(egui::RichText::new(i18n::t("entered_items", lang)).size(14.0).color(text_color(is_dark)).strong());
+
+            egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
+                egui::Grid::new("sale_items_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
+                    table_header(ui, i18n::t("product", lang));
+                    table_header(ui, i18n::t("quantity", lang));
+                    table_header(ui, i18n::t("unit_price", lang));
+                    table_header(ui, "");
+                    ui.end_row();
+
+                    let mut remove_idx: Option<usize> = None;
+                    for (idx, item) in state.form_items.iter_mut().enumerate() {
+                        ui.label(egui::RichText::new(&item.product_name).size(13.0).color(text_color(is_dark)));
+                        ui.add(egui::TextEdit::singleline(&mut item.quantity).desired_width(50.0));
+                        ui.add(egui::TextEdit::singleline(&mut item.selling_price).desired_width(60.0));
+                        if components::delete_btn(ui, is_dark).clicked() { remove_idx = Some(idx); }
+                        ui.end_row();
+                    }
+                    if let Some(idx) = remove_idx { state.remove_item(idx); }
+                });
+            });
+
+            let err = state.form_error.clone();
+            components::modal_actions(ui, lang, err.as_deref(), |is_save| {
+                if is_save { state.save(conn); }
+                else { state.close_modal(); }
+            });
+        });
     }
 }

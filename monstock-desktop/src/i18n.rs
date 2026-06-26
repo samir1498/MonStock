@@ -20,7 +20,7 @@ impl Lang {
     }
 }
 
-pub fn t<'a>(key: &'a str, lang: Lang) -> &'a str {
+pub fn t(key: &str, lang: Lang) -> &str {
     match lang {
         Lang::Fr => match key {
             "app_name" => "MonStock",
@@ -93,6 +93,15 @@ pub fn t<'a>(key: &'a str, lang: Lang) -> &'a str {
             "expense_short" => "Dépense",
             "vs_yesterday" => "vs hier",
             "view_inventory" => "Voir l'inventaire →",
+            "create" => "Créer",
+            "backup" => "Sauvegarde",
+            "backup_created" => "Sauvegarde créée",
+            "open" => "Ouvrir",
+            "never" => "Jamais",
+            "no_backups" => "Aucune sauvegarde",
+            "cloud_sync" => "Synchronisation cloud",
+            "cloud_sync_info" => "Les sauvegardes sont stockées localement. Pour les sécuriser, copiez ce dossier vers un service cloud comme Google Drive, OneDrive ou Dropbox.",
+            "all_platforms" => "Fonctionne sur toutes les plateformes",
             _ => key,
         },
         Lang::En => match key {
@@ -166,6 +175,15 @@ pub fn t<'a>(key: &'a str, lang: Lang) -> &'a str {
             "expense_short" => "Expense",
             "vs_yesterday" => "vs yesterday",
             "view_inventory" => "View inventory →",
+            "create" => "Create",
+            "backup" => "Backup",
+            "backup_created" => "Backup created",
+            "open" => "Open",
+            "never" => "Never",
+            "no_backups" => "No backups yet",
+            "cloud_sync" => "Cloud sync",
+            "cloud_sync_info" => "Backups are stored locally on your device. To keep them safe, copy this folder to a cloud storage service like Google Drive, OneDrive, or Dropbox.",
+            "all_platforms" => "Works on all platforms",
             _ => key,
         },
     }

@@ -2,10 +2,14 @@ use egui;
 use crate::i18n::{self, Lang};
 use crate::style::*;
 
-pub struct DashboardState;
+pub struct DashboardState {
+    pub low_stock_pagination: PaginationState,
+}
 
 impl Default for DashboardState {
-    fn default() -> Self { Self }
+    fn default() -> Self {
+        Self { low_stock_pagination: PaginationState { page: 1, per_page: 9, total: 0 } }
+    }
 }
 
 enum ActivityType {
@@ -13,46 +17,36 @@ enum ActivityType {
     Expense { category: String, time: String, amount: f64 },
 }
 
+#[allow(clippy::too_many_arguments)]
 fn stat_card(ui: &mut egui::Ui, label: &str, value: &str, val_color: egui::Color32, delta: f64, delta_is_percentage: bool, is_dark: bool, lang: Lang) {
-    let frame = egui::Frame::new()
+    let display_color = if !is_dark && val_color == TEXT {
+        egui::Color32::from_rgb(20, 20, 28)
+    } else if !is_dark && val_color == ACCENT {
+        egui::Color32::from_rgb(70, 110, 150)
+    } else {
+        val_color
+    };
+    let delta_text = if delta_is_percentage {
+        format!("{}{:.1}% {}", if delta >= 0.0 { "+" } else { "" }, delta, i18n::t("vs_yesterday", lang))
+    } else {
+        format!("{}{} {}", if delta >= 0.0 { "+" } else { "" }, delta as i64, i18n::t("vs_yesterday", lang))
+    };
+    let delta_color = if delta >= 0.0 { GOOD } else { BAD };
+
+    egui::Frame::new()
         .fill(raised(is_dark))
         .stroke(egui::Stroke::new(1.0, border(is_dark)))
         .corner_radius(8)
-        .inner_margin(egui::Margin::symmetric(18, 16));
-    frame.show(ui, |ui| {
-        ui.set_min_width(ui.available_width());
-        ui.label(egui::RichText::new(label).size(13.0).color(text_dim_c(is_dark)).strong());
-        ui.add_space(4.0);
-        
-        let display_color = if !is_dark && val_color == TEXT {
-            egui::Color32::from_rgb(20, 20, 28)
-        } else if !is_dark && val_color == ACCENT {
-            egui::Color32::from_rgb(70, 110, 150)
-        } else {
-            val_color
-        };
-        
-        ui.label(egui::RichText::new(value).size(26.0).color(display_color).strong());
-        ui.add_space(4.0);
-        
-        if delta_is_percentage {
-            let label_text = if delta >= 0.0 {
-                format!("+{:.1}% {}", delta, i18n::t("vs_yesterday", lang))
-            } else {
-                format!("{:.1}% {}", delta, i18n::t("vs_yesterday", lang))
-            };
-            let color = if delta >= 0.0 { GOOD } else { BAD };
-            ui.colored_label(color, egui::RichText::new(label_text).size(12.0).monospace());
-        } else {
-            let label_text = if delta >= 0.0 {
-                format!("+{} {}", delta as i64, i18n::t("vs_yesterday", lang))
-            } else {
-                format!("{} {}", delta as i64, i18n::t("vs_yesterday", lang))
-            };
-            let color = if delta >= 0.0 { GOOD } else { BAD };
-            ui.colored_label(color, egui::RichText::new(label_text).size(12.0).monospace());
-        }
-    });
+        .inner_margin(egui::Margin::symmetric(18, 16))
+        .show(ui, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.label(egui::RichText::new(label).size(13.0).color(text_dim_c(is_dark)).strong());
+                ui.add_space(4.0);
+                ui.label(egui::RichText::new(value).size(26.0).color(display_color).strong());
+                ui.add_space(4.0);
+                ui.colored_label(delta_color, egui::RichText::new(delta_text).size(12.0).monospace());
+            });
+        });
 }
 
 fn quick_action(ui: &mut egui::Ui, sigil: &str, title: &str, desc: &str, is_dark: bool) -> egui::Response {
@@ -91,7 +85,7 @@ fn quick_action(ui: &mut egui::Ui, sigil: &str, title: &str, desc: &str, is_dark
     res
 }
 
-pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, is_dark: bool, _state: &mut DashboardState) -> Option<crate::Screen> {
+pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, is_dark: bool, state: &mut DashboardState) -> Option<crate::Screen> {
     page_header(ui, "#", i18n::t("dashboard", lang), i18n::t("overview", lang), is_dark);
 
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
@@ -169,12 +163,24 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
 
     ui.add_space(8.0);
 
-    // Stats row (4 horizontal cards)
-    ui.columns(4, |cols| {
-        stat_card(&mut cols[0], i18n::t("sales", lang), &format!("{:.0} DA", stats.sales_total), GOOD, sales_pct, true, is_dark, lang);
-        stat_card(&mut cols[1], i18n::t("transactions", lang), &format!("{}", stats.transaction_count), ACCENT, tx_diff as f64, false, is_dark, lang);
-        stat_card(&mut cols[2], i18n::t("expenses", lang), &format!("{:.0} DA", stats.expenses_total), BAD, expenses_pct, true, is_dark, lang);
-        stat_card(&mut cols[3], i18n::t("profit", lang), &format!("{:.0} DA", profit), if profit >= 0.0 { GOOD } else { BAD }, profit_pct, true, is_dark, lang);
+    // Stats row (4 equal-width fixed-height cards)
+    let stat_width = (ui.available_width() - 3.0 * 8.0) / 4.0;
+    let stat_height = 110.0;
+    ui.horizontal(|ui| {
+        let cards: [(&str, String, egui::Color32, f64, bool); 4] = [
+            (i18n::t("sales", lang), format!("{:.0} DA", stats.sales_total), GOOD, sales_pct, true),
+            (i18n::t("transactions", lang), format!("{}", stats.transaction_count), ACCENT, tx_diff as f64, false),
+            (i18n::t("expenses", lang), format!("{:.0} DA", stats.expenses_total), BAD, expenses_pct, true),
+            (i18n::t("profit", lang), format!("{:.0} DA", profit), if profit >= 0.0 { GOOD } else { BAD }, profit_pct, true),
+        ];
+        for (i, (label, value, color, delta, is_pct)) in cards.iter().enumerate() {
+            if i > 0 { ui.add_space(8.0); }
+            ui.allocate_ui_with_layout(
+                egui::vec2(stat_width, stat_height),
+                egui::Layout::top_down(egui::Align::LEFT),
+                |ui| stat_card(ui, label, value, *color, *delta, *is_pct, is_dark, lang),
+            );
+        }
     });
 
     ui.add_space(20.0);
@@ -192,7 +198,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 
                 // group sales by hour
                 let txs = monstock_core::services::sale_service::find_transactions_by_date(conn, &today).unwrap_or_default();
-                let mut hourly_sales = vec![0.0f64; 24];
+                let mut hourly_sales = [0.0f64; 24];
                 for tx in &txs {
                     if let Some(time_part) = tx.timestamp.split('T').nth(1) {
                         if let Some(hour_str) = time_part.split(':').next() {
@@ -209,8 +215,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                     ui.spacing_mut().item_spacing.x = 8.0;
                     let max_amount = hourly_sales.iter().cloned().fold(0.0, f64::max);
                     
-                    for hr in 8..20 {
-                        let amount = hourly_sales[hr];
+                    for (hr, amount) in hourly_sales.iter().enumerate().take(20).skip(8) {
                         ui.vertical(|ui| {
                             let pct = if max_amount > 0.0 { (amount / max_amount) as f32 } else { 0.0 };
                             let bar_height = 100.0 * pct;
@@ -341,22 +346,38 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
         if low_stock.is_empty() {
             ui.colored_label(text_dim_c(is_dark), egui::RichText::new(i18n::t("all_stocked", lang)).size(14.0));
         } else {
-            egui::Grid::new("low_stock_grid")
-                .striped(true)
-                .min_col_width(120.0)
-                .show(ui, |ui| {
-                    ui.colored_label(text_sec_color(is_dark), egui::RichText::new(i18n::t("name", lang)).strong());
-                    ui.colored_label(text_sec_color(is_dark), egui::RichText::new(i18n::t("stock", lang)).strong());
-                    ui.colored_label(text_sec_color(is_dark), egui::RichText::new(i18n::t("price", lang)).strong());
-                    ui.end_row();
+            state.low_stock_pagination.total = low_stock.len() as i64;
+            let offset = state.low_stock_pagination.offset() as usize;
+            let per_page = state.low_stock_pagination.per_page as usize;
+            let page_items: Vec<_> = low_stock.iter().skip(offset).take(per_page).collect();
 
-                    for p in &low_stock {
-                        ui.label(egui::RichText::new(&p.name).size(14.0).color(text_color(is_dark)));
-                        ui.colored_label(BAD, egui::RichText::new(format!("{}", p.quantity_on_hand)).size(14.0));
-                        ui.label(egui::RichText::new(format!("{:.0} DA", p.selling_price)).size(14.0).color(text_color(is_dark)));
-                        ui.end_row();
+            let col_count = 3;
+            let chunk_size = page_items.len().div_ceil(col_count).max(1);
+            for chunk in page_items.chunks(chunk_size) {
+                ui.horizontal(|ui| {
+                    for p in chunk {
+                        let frame = egui::Frame::new()
+                            .fill(if is_dark { SURFACE } else { egui::Color32::from_rgb(240, 240, 245) })
+                            .stroke(egui::Stroke::new(1.0, border(is_dark)))
+                            .corner_radius(8)
+                            .inner_margin(egui::Margin::symmetric(14, 12));
+                        frame.show(ui, |ui| {
+                            ui.set_min_width(140.0);
+                            ui.label(egui::RichText::new(&p.name).size(14.0).color(text_color(is_dark)).strong());
+                            ui.add_space(6.0);
+                            ui.horizontal(|ui| {
+                                ui.colored_label(BAD, egui::RichText::new(format!("{}", p.quantity_on_hand)).size(22.0).monospace().strong());
+                                ui.add_space(4.0);
+                                ui.colored_label(text_dim_c(is_dark), egui::RichText::new(i18n::t("stock", lang)).size(12.0));
+                            });
+                            ui.add_space(4.0);
+                            ui.colored_label(text_sec_color(is_dark), egui::RichText::new(format!("{:.0} DA", p.selling_price)).size(13.0).monospace());
+                        });
                     }
                 });
+                ui.add_space(6.0);
+            }
+            pagination_ui(ui, &mut state.low_stock_pagination, is_dark);
         }
     });
         

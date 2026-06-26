@@ -58,6 +58,7 @@ pub fn update_product(conn: &mut SqliteConnection, product_id: i32, p: &NewProdu
         .set((
             products::name.eq(&p.name),
             products::barcode.eq(&p.barcode),
+            products::cost_price.eq(p.cost_price),
             products::selling_price.eq(p.selling_price),
         ))
         .execute(conn)
