@@ -4,7 +4,9 @@ Inventory & sales management for small shops. Rust + egui + SQLite. Offline, cro
 
 ## Screenshots
 
-*(add screenshots to `screenshots/` and link them here)*
+| Dark mode | Light mode |
+|---|---|
+| ![Dashboard dark](screenshots/dashboard-dark.png) | ![Dashboard light](screenshots/dashboard-light.png) |
 
 ## Features
 

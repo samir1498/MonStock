@@ -4,9 +4,6 @@ main
 *.db*
 *.db-shm
 *.db-wal
-design-prompt.md
-monstock_ui_v2.html
-screenshots/
-docs/design-prompt.md
-docs/inventory_desktop.html
-docs/monstock_ui_v2.html
+/design-prompt.md
+/monstock_ui_v2.html
+/inventory_desktop.html
