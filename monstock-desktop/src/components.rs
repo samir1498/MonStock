@@ -28,9 +28,6 @@ where
     egui::ScrollArea::horizontal().id_salt(format!("{}_scroll", id)).show(ui, |ui| {
         egui::Grid::new(id).striped(true).min_col_width(60.0).show(ui, |ui| {
             for (i, h) in headers.iter().enumerate() {
-                if i > 0 {
-                    ui.add(egui::Label::new(" ").sense(egui::Sense::hover()));
-                }
                 if let Some(ref mut s) = sort {
                     sortable_header(ui, h, i, s);
                 } else {

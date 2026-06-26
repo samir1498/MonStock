@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 — fix DataTable column alignment
+
+### Bugfixes
+- DataTable headers and data rows now share the same column layout (removed spacer between headers that threw off alignment)
+
 ## 0.2.0 — architecture cleanup
 
 ### Features
