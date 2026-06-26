@@ -68,13 +68,16 @@ fn seed_suppliers(conn: &mut SqliteConnection) -> Vec<i32> {
 }
 
 fn seed_expenses(conn: &mut SqliteConnection, days_back: i64) {
-    let categories = ["Livraison", "Électricité", "Eau", "Loyer", "Entretien", "Fournitures", "Salaires", "Impôts", "Assurance"];
+    let daily_cats = ["Livraison", "Fournitures"];
     for day in 0..days_back {
         let date = (chrono::Local::now() - chrono::Duration::days(day)).format("%Y-%m-%d").to_string();
-        let n = random_range(0, 4);
+        let n = random_range(0, 2);
         for _ in 0..n {
-            let cat = pick(&categories);
-            let amount = random_range(500, 50000) as f64;
+            let cat = pick(&daily_cats);
+            let amount = match cat {
+                "Livraison" => random_range(200, 800) as f64,
+                _ => random_range(300, 1500) as f64,
+            };
             let desc = format!("{} - {}", cat, date);
             let expense = NewExpense {
                 date: date.clone(),
@@ -85,17 +88,47 @@ fn seed_expenses(conn: &mut SqliteConnection, days_back: i64) {
             expense_service::create(conn, &expense).ok();
         }
     }
+    // Monthly expenses: rent, electricity, water, salaries
+    let current = chrono::Local::now();
+    for month_offset in 0..(days_back / 30).max(1) {
+        let month_start = current - chrono::Duration::days(month_offset * 30);
+        let ref_day = month_start.format("%Y-%m-15").to_string();
+        for (cat, low, high, desc) in [
+            ("Loyer", 30000, 50000, "Loyer local commercial"),
+            ("Électricité", 3000, 7000, "Facture électricité"),
+            ("Eau", 800, 2000, "Facture eau"),
+        ] {
+            let expense = NewExpense {
+                date: ref_day.clone(),
+                category: cat.to_string(),
+                description: Some(desc.to_string()),
+                amount: random_range(low, high) as f64,
+            };
+            expense_service::create(conn, &expense).ok();
+        }
+        let expense = NewExpense {
+            date: (month_start - chrono::Duration::days(2)).format("%Y-%m-%d").to_string(),
+            category: "Salaires".to_string(),
+            description: Some("Salaires employés".to_string()),
+            amount: random_range(40000, 70000) as f64,
+        };
+        expense_service::create(conn, &expense).ok();
+    }
 }
 
 fn seed_sales(conn: &mut SqliteConnection, product_ids: &[i32], days_back: i64) {
     for day in 0..days_back {
         let date = (chrono::Local::now() - chrono::Duration::days(day)).format("%Y-%m-%d").to_string();
-        let n = random_range(0, 15);
+        let is_weekday = match chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d") {
+            Ok(d) => d.format("%u").to_string().parse::<u32>().unwrap_or(7) < 6,
+            Err(_) => true,
+        };
+        let n = if is_weekday { random_range(30, 70) } else { random_range(15, 35) };
         for _ in 0..n {
-            let hours = random_range(8, 20);
+            let hours = random_range(8, 21);
             let minutes = random_range(0, 59);
             let timestamp = format!("{}T{:02}:{:02}:00", date, hours, minutes);
-            let items_count = random_range(1, 6);
+            let items_count = random_range(1, 5);
             let mut inputs = Vec::new();
             for _ in 0..items_count {
                 let pid = product_ids[(rand_small().unsigned_abs() as usize) % product_ids.len()];

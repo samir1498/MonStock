@@ -1,0 +1,2202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MonStock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --surface: #111114;
+    --raised: #16161a;
+    --hover: #1c1c22;
+    --border: #1e1e26;
+    --border-strong: #2a2a34;
+    --text: #e8e8ec;
+    --text-sec: #6e6e7a;
+    --text-dim: #464650;
+    --accent: #7c8fa3;
+    --accent-dim: rgba(124,143,163,0.12);
+    --accent-glow: rgba(124,143,163,0.08);
+    --good: #6a8a7a;
+    --bad: #8a6a6a;
+    --warn: #8a7a6a;
+    --font: 'Inter', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --r: 8px;
+    --r-sm: 6px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html { scroll-behavior:smooth; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:#222; border-radius:3px; }
+
+  .app { display:flex; min-height:100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display:flex; flex-direction:column;
+    position:fixed; inset:0 auto 0 0;
+    z-index:100;
+  }
+
+  .sidebar-head {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display:flex; align-items:center; gap:10px;
+  }
+
+  .logo-mark {
+    width: 28px; height: 28px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: var(--r-sm);
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  .logo-mark::before {
+    content:'';
+    width: 10px; height: 10px;
+    background: var(--text);
+    border-radius: 2px;
+  }
+
+  .logo-text {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    font-weight: 400;
+  }
+
+  .nav {
+    padding: 12px 10px;
+    flex:1;
+    overflow-y:auto;
+  }
+
+  .nav-item {
+    display:flex; align-items:center; gap:10px;
+    padding: 7px 12px;
+    border-radius: var(--r-sm);
+    color: var(--text-sec);
+    text-decoration:none;
+    font-size: 12.5px;
+    font-weight: 450;
+    cursor:pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 1px;
+    border: 1px solid transparent;
+  }
+
+  .nav-item:hover {
+    color: var(--text);
+    background: var(--raised);
+    border-color: var(--border);
+  }
+
+  .nav-item.active {
+    color: var(--text);
+    background: var(--raised);
+    border-color: var(--border-strong);
+  }
+
+  .nav-item.active::before {
+    content:'';
+    position:absolute; left:10px;
+    width: 3px; height: 16px;
+    background: var(--text);
+    border-radius: 0 2px 2px 0;
+  }
+
+  .nav-item { position:relative; }
+
+  .nav-ico {
+    width: 18px; text-align:center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    transition: color 0.15s;
+  }
+
+  .nav-item:hover .nav-ico,
+  .nav-item.active .nav-ico { color: var(--text-sec); }
+
+  .nav-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 14px 14px 10px;
+  }
+
+  .nav-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    padding: 0 14px 8px;
+    font-weight: 500;
+  }
+
+  .sidebar-foot {
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-dim);
+    display:flex; align-items:center; gap:8px;
+  }
+
+  .dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--good);
+  }
+
+  /* Main */
+  .main {
+    flex:1;
+    margin-left: 220px;
+    display:flex; flex-direction:column;
+    min-height:100vh;
+  }
+
+  .topbar {
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 0 28px;
+    position:sticky; top:0;
+    background: rgba(10,10,12,0.85);
+    backdrop-filter: blur(12px);
+    z-index:50;
+  }
+
+  .crumb {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-sec);
+    letter-spacing: -0.2px;
+  }
+
+  .crumb strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .topbar-right {
+    display:flex; align-items:center; gap:10px;
+  }
+
+  .search {
+    position:relative;
+  }
+
+  .search input {
+    width: 220px;
+    padding: 5px 10px 5px 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 12px;
+    outline:none;
+    transition: all 0.15s;
+  }
+
+  .search input:focus {
+    border-color: var(--border-strong);
+    background: var(--raised);
+  }
+
+  .search input::placeholder { color: var(--text-dim); }
+
+  .search svg {
+    position:absolute; left:8px; top:50%; transform:translateY(-50%);
+    width: 12px; height: 12px;
+    stroke: var(--text-dim);
+    fill:none; stroke-width:2;
+  }
+
+  .btn {
+    display:inline-flex; align-items:center; gap:6px;
+    padding: 5px 12px;
+    border-radius: var(--r-sm);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 500;
+    cursor:pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-sec);
+    transition: all 0.15s;
+    white-space:nowrap;
+  }
+
+  .btn:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+    background: var(--raised);
+  }
+
+  .btn-primary {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+
+  .btn-primary:hover {
+    background: var(--text-sec);
+    border-color: var(--text-sec);
+    color: var(--bg);
+  }
+
+  .btn-sec {
+    background: transparent;
+    border-color: var(--border);
+  }
+
+  .btn-sm { padding: 4px 10px; font-size: 11.5px; }
+
+  /* Content */
+  .content { padding: 28px; max-width: 1200px; }
+
+  .page-head {
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .page-title {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+    line-height: 1.2;
+  }
+
+  .page-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-weight: 400;
+  }
+
+  /* Alert */
+  .alert {
+    background: var(--raised);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 12px 16px;
+    display:flex; align-items:center; gap:10px;
+    margin-bottom: 20px;
+    cursor:pointer;
+    transition: all 0.15s;
+  }
+
+  .alert:hover {
+    border-color: var(--border-strong);
+    background: var(--hover);
+  }
+
+  .alert-sigil {
+    width: 24px; height: 24px;
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--warn);
+  }
+
+  .alert-text { font-weight: 500; font-size: 12.5px; }
+  .alert-meta { margin-left:auto; font-size: 11.5px; color: var(--text-dim); }
+
+  /* Stats */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 18px;
+    transition: all 0.2s;
+  }
+
+  .stat:hover {
+    border-color: var(--border-strong);
+    background: var(--raised);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .stat-val {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    font-family: var(--font);
+    margin-bottom: 6px;
+  }
+
+  .stat-delta {
+    font-size: 11.5px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+  }
+
+  .stat-delta.up { color: var(--good); }
+  .stat-delta.down { color: var(--bad); }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    overflow:hidden;
+  }
+
+  .card-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+  }
+
+  .card-body { padding: 16px 18px; }
+
+  .card-body.no-pad { padding: 0; }
+
+  /* Grid */
+  .cols-2 {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  /* Chart */
+  .chart {
+    height: 220px;
+    display:flex; align-items:flex-end;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 0 4px;
+  }
+
+  .chart-col {
+    flex:1;
+    display:flex; flex-direction:column; align-items:center;
+    gap: 6px;
+  }
+
+  .chart-bar {
+    width: 100%;
+    background: var(--raised);
+    border-radius: 3px 3px 0 0;
+    min-height: 4px;
+    transition: all 0.3s ease;
+    position:relative;
+  }
+
+  .chart-bar::after {
+    content:''; position:absolute; inset:0;
+    background: var(--accent);
+    opacity: 0;
+    border-radius: 3px 3px 0 0;
+    transition: opacity 0.3s;
+  }
+
+  .chart-col:hover .chart-bar::after { opacity: 0.25; }
+
+  .chart-lbl {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+  }
+
+  /* Activity */
+  .activity {
+    display:flex; flex-direction:column;
+  }
+
+  .act-row {
+    display:flex; align-items:center; gap:12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+
+  .act-row:last-child { border-bottom:none; }
+
+  .act-row:hover { background: var(--raised); margin:0 -18px; padding-left:18px; padding-right:18px; }
+
+  .act-type {
+    width: 22px; height: 22px;
+    border-radius: var(--r-sm);
+    background: var(--raised);
+    border: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    flex-shrink:0;
+  }
+
+  .act-body { flex:1; min-width:0; }
+  .act-title {
+    font-size: 12.5px;
+    font-weight: 500;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .act-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 1px;
+  }
+  .act-amt {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    white-space:nowrap;
+    text-align:right;
+  }
+  .act-amt.pos { color: var(--good); }
+  .act-amt.neg { color: var(--bad); }
+
+  /* Tables */
+  .table-wrap { overflow-x:auto; }
+
+  table {
+    width:100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+
+  th {
+    text-align:left;
+    padding: 10px 16px;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-dim);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    white-space:nowrap;
+  }
+
+  td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align:middle;
+  }
+
+  tr:hover td { background: var(--raised); }
+  tr:last-child td { border-bottom:none; }
+
+  .cell-mono {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-sec);
+  }
+
+  .cell-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    text-align: right;
+  }
+
+  .cell-good { color: var(--good); }
+  .cell-bad { color: var(--bad); }
+  .cell-warn { color: var(--warn); }
+
+  /* Product cell */
+  .prod {
+    display:flex; align-items:center; gap:10px;
+  }
+
+  .prod-av {
+    width: 28px; height: 28px;
+    border-radius: var(--r-sm);
+    background: var(--raised);
+    border: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-size: 11px;
+    flex-shrink:0;
+  }
+
+  .prod-name {
+    font-weight: 500;
+    font-size: 12.5px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  .prod-sku {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+  }
+
+  /* Stock bar */
+  .sbar {
+    display:inline-flex; align-items:center; gap:8px;
+  }
+
+  .sbar-track {
+    width: 40px; height: 3px;
+    background: var(--raised);
+    border-radius: 2px;
+    overflow:hidden;
+  }
+
+  .sbar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--text-dim);
+    transition: width 0.5s ease;
+  }
+
+  .sbar-fill.ok { background: var(--text-sec); }
+  .sbar-fill.low { background: var(--warn); }
+  .sbar-fill.out { background: var(--bad); }
+
+  /* Tags */
+  .tag {
+    display:inline-flex;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--raised);
+    color: var(--text-sec);
+  }
+
+  .tag-good { border-color: rgba(106,138,122,0.25); color: var(--good); background: rgba(106,138,122,0.06); }
+  .tag-warn { border-color: rgba(138,122,106,0.25); color: var(--warn); background: rgba(138,122,106,0.06); }
+  .tag-bad { border-color: rgba(138,106,106,0.25); color: var(--bad); background: rgba(138,106,106,0.06); }
+
+  /* Pills */
+  .pills {
+    display:flex; gap:6px;
+    margin-bottom: 16px;
+    flex-wrap:wrap;
+  }
+
+  .pill {
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 11.5px;
+    font-weight: 500;
+    cursor:pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    transition: all 0.15s;
+    font-family: var(--font);
+  }
+
+  .pill:hover { border-color: var(--border-strong); color: var(--text-sec); }
+  .pill.on {
+    background: var(--raised);
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+
+  /* Pagination */
+  .pg {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 12px 16px;
+    font-size: 11.5px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+  }
+
+  .pg-btns { display:flex; gap:4px; }
+
+  .pg-btn {
+    width: 26px; height: 26px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor:pointer;
+    font-family: var(--font);
+    font-size: 11px;
+    transition: all 0.15s;
+  }
+
+  .pg-btn:hover { border-color: var(--border-strong); color: var(--text-sec); }
+  .pg-btn.on { background: var(--raised); color: var(--text); border-color: var(--border-strong); }
+  .pg-btn:disabled { opacity:0.3; cursor:not-allowed; }
+
+  /* Modal */
+  .modal-bg {
+    position:fixed; inset:0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    display:flex; align-items:center; justify-content:center;
+    z-index:1000;
+    opacity:0; pointer-events:none;
+    transition: opacity 0.2s ease;
+  }
+
+  .modal-bg.open { opacity:1; pointer-events:all; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    width: 92%; max-width: 480px;
+    max-height: 90vh;
+    overflow:hidden;
+    display:flex; flex-direction:column;
+    transform: translateY(12px) scale(0.98);
+    transition: transform 0.2s ease;
+  }
+
+  .modal-bg.open .modal { transform: translateY(0) scale(1); }
+
+  .modal-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+
+  .modal-title { font-size: 14px; font-weight: 600; }
+
+  .modal-x {
+    width: 24px; height: 24px;
+    border-radius: 5px;
+    border:none;
+    background: var(--raised);
+    color: var(--text-dim);
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 16px;
+    line-height:1;
+    transition: all 0.15s;
+  }
+
+  .modal-x:hover { background: var(--bad); color: var(--text); }
+
+  .modal-body {
+    padding: 20px;
+    overflow-y:auto;
+    flex:1;
+  }
+
+  .modal-foot {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display:flex; justify-content:flex-end; gap:8px;
+  }
+
+  /* Form */
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom:0; }
+
+  .field-lbl {
+    display:block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-sec);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .field input, .field select, .field textarea {
+    width:100%;
+    padding: 7px 10px;
+    background: var(--raised);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 12.5px;
+    outline:none;
+    transition: all 0.15s;
+  }
+
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--border-strong);
+    background: var(--hover);
+  }
+
+  .field input::placeholder { color: var(--text-dim); }
+
+  .field textarea { resize:vertical; min-height: 60px; }
+
+  .field-row { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+
+  .field-hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* Inline edit */
+  .inedit {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    text-align:right;
+    width: 90px;
+    outline:none;
+    transition: all 0.15s;
+  }
+
+  .inedit:hover, .inedit:focus {
+    background: var(--raised);
+    border-color: var(--border);
+  }
+
+  /* Quick actions */
+  .qgrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .qcard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 18px;
+    text-align:center;
+    cursor:pointer;
+    transition: all 0.2s;
+  }
+
+  .qcard:hover {
+    border-color: var(--border-strong);
+    background: var(--raised);
+  }
+
+  .qcard-sigil {
+    width: 32px; height: 32px;
+    border-radius: var(--r-sm);
+    background: var(--raised);
+    border: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    margin: 0 auto 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .qcard-title { font-weight: 600; font-size: 12.5px; margin-bottom: 3px; }
+  .qcard-desc { font-size: 11.5px; color: var(--text-dim); }
+
+  /* Screens */
+  .screen { display:none; animation: in 0.25s ease; }
+  .screen.on { display:block; }
+
+  @keyframes in {
+    from { opacity:0; transform: translateY(6px); }
+    to { opacity:1; transform: translateY(0); }
+  }
+
+  /* Empty */
+  .empty {
+    text-align:center;
+    padding: 48px 20px;
+  }
+  .empty-ico {
+    width: 40px; height: 40px;
+    border-radius: var(--r);
+    background: var(--raised);
+    border: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    margin: 0 auto 14px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+  .empty-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .empty-desc { color: var(--text-dim); font-size: 12px; }
+
+  /* Summary */
+  .sum-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .sum-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 18px;
+  }
+
+  .sum-card.hl {
+    border-color: var(--border-strong);
+    background: var(--raised);
+  }
+
+  .sum-h {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+
+  .sum-row {
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+  }
+
+  .sum-row:last-child { border-bottom:none; }
+  .sum-row.t { font-weight: 600; font-size: 13px; padding-top: 10px; border-top: 1px solid var(--border); border-bottom:none; margin-top: 4px; }
+
+  /* Profit math */
+  .math {
+    background: var(--raised);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 16px 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 2;
+  }
+
+  .math-line { display:flex; justify-content:space-between; }
+  .math-line.op { color: var(--text-dim); padding-left: 16px; }
+  .math-line.res { color: var(--good); font-weight: 600; border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; }
+
+  /* Donut */
+  .donut-wrap {
+    width: 120px; height: 120px;
+    position:relative;
+    margin: 0 auto;
+  }
+
+  .donut-wrap svg { transform: rotate(-90deg); }
+
+  .donut-c {
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+  }
+
+  .donut-v { font-size: 18px; font-weight: 600; font-family: var(--font); }
+  .donut-l { font-size: 10px; color: var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; }
+
+  /* Status flow */
+  .flow { display:flex; align-items:center; gap:6px; }
+  .flow-step {
+    display:flex; align-items:center; gap:5px;
+    font-size: 11.5px;
+    color: var(--text-dim);
+  }
+  .flow-step.done { color: var(--text-sec); }
+  .flow-step.on { color: var(--text); font-weight: 500; }
+  .flow-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border-strong);
+  }
+  .flow-step.done .flow-dot { background: var(--good); }
+  .flow-step.on .flow-dot { background: var(--text); box-shadow: 0 0 0 2px var(--border); }
+  .flow-arr { color: var(--text-dim); font-size: 10px; font-family: var(--mono); }
+
+  /* Toast */
+  .toast-box {
+    position:fixed; bottom: 20px; right: 20px;
+    z-index: 2000;
+    display:flex; flex-direction:column; gap: 6px;
+  }
+
+  .toast {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 10px 14px;
+    display:flex; align-items:center; gap: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    animation: slide 0.25s ease;
+    min-width: 240px;
+  }
+
+  @keyframes slide {
+    from { transform: translateX(20px); opacity:0; }
+    to { transform: translateX(0); opacity:1; }
+  }
+
+  .toast-sigil {
+    width: 20px; height: 20px;
+    border-radius: 4px;
+    background: var(--raised);
+    border: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--good);
+    flex-shrink:0;
+  }
+
+  .toast-t { font-weight: 600; font-size: 12px; }
+  .toast-d { font-size: 11.5px; color: var(--text-dim); }
+
+  /* Barcode */
+  .bc-wrap { position:relative; }
+  .bc-wrap input { padding-left: 32px; font-family: var(--mono); letter-spacing: 1px; }
+  .bc-ico {
+    position:absolute; left:10px; top:50%; transform:translateY(-50%);
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+  }
+
+  /* Mobile */
+  .menu-btn {
+    display:none;
+    background:none; border:none;
+    color: var(--text-sec);
+    font-size: 16px;
+    cursor:pointer;
+    padding: 4px;
+    margin-right: 8px;
+  }
+
+  .side-overlay {
+    display:none; position:fixed; inset:0;
+    background: rgba(0,0,0,0.4);
+    z-index: 99;
+  }
+
+  @media (max-width: 900px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .cols-2 { grid-template-columns: 1fr; }
+    .qgrid { grid-template-columns: 1fr; }
+    .sum-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 640px) {
+    .sidebar { transform: translateX(-100%); transition: transform 0.2s; }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .menu-btn { display:block; }
+    .side-overlay.open { display:block; }
+    .stats { grid-template-columns: 1fr; }
+    .content { padding: 16px; }
+    .topbar { padding: 0 16px; }
+    .search input { width: 140px; }
+    .field-row { grid-template-columns: 1fr; }
+  }
+
+  /* Print */
+  @media print {
+    .sidebar, .topbar, .btn, .modal-bg, .toast-box { display:none !important; }
+    .main { margin-left:0 !important; }
+    body { background:#fff; color:#000; }
+    .card, .stat, .sum-card { border: 1px solid #ccc !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="logo">
+        <div class="logo-mark"></div>
+        <div>
+          <div class="logo-text">MonStock</div>
+          <div class="logo-sub">Inventory & Sales</div>
+        </div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item active" data-sc="dashboard" onclick="go('dashboard')">
+        <span class="nav-ico">01</span>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" data-sc="inventory" onclick="go('inventory')">
+        <span class="nav-ico">02</span>
+        <span>Inventory</span>
+      </a>
+      <a class="nav-item" data-sc="purchase" onclick="go('purchase')">
+        <span class="nav-ico">03</span>
+        <span>Purchase Orders</span>
+      </a>
+      <a class="nav-item" data-sc="suppliers" onclick="go('suppliers')">
+        <span class="nav-ico">04</span>
+        <span>Suppliers</span>
+      </a>
+      <a class="nav-item" data-sc="barcodes" onclick="go('barcodes')">
+        <span class="nav-ico">05</span>
+        <span>Barcodes & Pricing</span>
+      </a>
+      <a class="nav-item" data-sc="expenses" onclick="go('expenses')">
+        <span class="nav-ico">06</span>
+        <span>Expenses</span>
+      </a>
+      <a class="nav-item" data-sc="eod" onclick="go('eod')">
+        <span class="nav-ico">07</span>
+        <span>End of Day</span>
+      </a>
+      <div class="nav-divider"></div>
+      <div class="nav-label">System</div>
+      <a class="nav-item" onclick="toast('Settings','Coming soon')">
+        <span class="nav-ico">08</span>
+        <span>Settings</span>
+      </a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="dot"></span>
+      <span>Offline mode</span>
+    </div>
+  </aside>
+
+  <div class="side-overlay" id="sover" onclick="toggleSide()"></div>
+
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;">
+        <button class="menu-btn" onclick="toggleSide()">≡</button>
+        <div class="crumb" id="crumb">Dashboard</div>
+      </div>
+      <div class="topbar-right">
+        <div class="search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" placeholder="Search..." id="globSearch">
+        </div>
+        <button class="btn btn-primary" onclick="openModal('mProd')">+ Add</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="screen on" id="sc-dashboard">
+        <div class="page-head">
+          <div>
+            <div class="page-title">Dashboard</div>
+            <div class="page-sub">Today, June 25, 2026</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sec btn-sm on">Today</button>
+            <button class="btn btn-sec btn-sm">Yesterday</button>
+          </div>
+        </div>
+
+        <div class="alert" onclick="go('inventory'); setPill(2)">
+          <div class="alert-sigil">!</div>
+          <span class="alert-text">3 items running low on stock</span>
+          <span class="alert-meta">View inventory →</span>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">Sales Today</div>
+            <div class="stat-val">48,750 DA</div>
+            <div class="stat-delta up">+12.5% vs yesterday</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Expenses Today</div>
+            <div class="stat-val">8,200 DA</div>
+            <div class="stat-delta down">-5.3% vs yesterday</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Net Profit</div>
+            <div class="stat-val" style="color:var(--good)">18,420 DA</div>
+            <div class="stat-delta up">+18.2% vs yesterday</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Transactions</div>
+            <div class="stat-val">42</div>
+            <div class="stat-delta">+8 vs yesterday</div>
+          </div>
+        </div>
+
+        <div class="cols-2">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Sales by Hour</div>
+              <span style="font-size:11px;color:var(--text-dim);font-family:var(--mono);">DA</span>
+            </div>
+            <div class="card-body">
+              <div class="chart">
+                <div class="chart-col"><div class="chart-bar" style="height:18%"></div><span class="chart-lbl">08</span></div>
+                <div class="chart-col"><div class="chart-bar" style="height:32%"></div><span class="chart-lbl">09</span></div>
+                <div class="chart-col"><div class="chart-bar" style="height:48%"></div><span class="chart-lbl">10</span></div>
+                <div class="chart-col"><div class="chart-bar" style="height:62%"></div><span class="chart-lbl">11</span></div>
+                <div class="chart-col"><div class="chart-bar" style="height:78%"></div><span class="chart-lbl">12</span></div>
+                <div class="chart-col"><div class="chart-bar" style="height:55%"></div><span class="chart-lbl">13</span></div>
+                <div class="chart-col"><div class="chart-bar" style="height:42%"></div><span class="chart-lbl">14</span></div>
+                <div class="chart-col"><div class="chart-bar" style="height:68%"></div><span class="chart-lbl">15</span></div>
+                <div class="chart-col"><div class="chart-bar" style="height:88%"></div><span class="chart-lbl">16</span></div>
+                <div class="chart-col"><div class="chart-bar" style="height:52%"></div><span class="chart-lbl">17</span></div>
+                <div class="chart-col"><div class="chart-bar" style="height:35%"></div><span class="chart-lbl">18</span></div>
+                <div class="chart-col"><div class="chart-bar" style="height:22%"></div><span class="chart-lbl">19</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Recent Activity</div>
+              <span style="font-size:11px;color:var(--text-dim);">Last 10</span>
+            </div>
+            <div class="card-body no-pad" style="padding:0 18px;">
+              <div class="activity">
+                <div class="act-row">
+                  <div class="act-type">$</div>
+                  <div class="act-body"><div class="act-title">Sale — Olive Oil 1L</div><div class="act-meta">16:42 · 3 units</div></div>
+                  <div class="act-amt pos">+1,350</div>
+                </div>
+                <div class="act-row">
+                  <div class="act-type">$</div>
+                  <div class="act-body"><div class="act-title">Sale — Medium Couscous</div><div class="act-meta">16:38 · 2 units</div></div>
+                  <div class="act-amt pos">+580</div>
+                </div>
+                <div class="act-row">
+                  <div class="act-type">B</div>
+                  <div class="act-body"><div class="act-title">Received — PO-20260625-001</div><div class="act-meta">15:20 · Supplier: Benali</div></div>
+                  <div class="act-amt">+24 items</div>
+                </div>
+                <div class="act-row">
+                  <div class="act-type">E</div>
+                  <div class="act-body"><div class="act-title">Expense — Electricity</div><div class="act-meta">14:00 · Monthly bill</div></div>
+                  <div class="act-amt neg">-3,200</div>
+                </div>
+                <div class="act-row">
+                  <div class="act-type">$</div>
+                  <div class="act-body"><div class="act-title">Sale — Deglet Nour Dates</div><div class="act-meta">13:15 · 1 kg</div></div>
+                  <div class="act-amt pos">+1,200</div>
+                </div>
+                <div class="act-row">
+                  <div class="act-type">$</div>
+                  <div class="act-body"><div class="act-title">Sale — UHT Milk 1L</div><div class="act-meta">12:48 · 6 units</div></div>
+                  <div class="act-amt pos">+840</div>
+                </div>
+                <div class="act-row">
+                  <div class="act-type">E</div>
+                  <div class="act-body"><div class="act-title">Expense — Delivery</div><div class="act-meta">11:30 · Transport</div></div>
+                  <div class="act-amt neg">-500</div>
+                </div>
+                <div class="act-row">
+                  <div class="act-type">$</div>
+                  <div class="act-body"><div class="act-title">Sale — Whole Bread</div><div class="act-meta">10:22 · 15 units</div></div>
+                  <div class="act-amt pos">+450</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="qgrid">
+          <div class="qcard" onclick="toast('New Sale','Feature coming soon')">
+            <div class="qcard-sigil">$</div>
+            <div class="qcard-title">New Sale</div>
+            <div class="qcard-desc">Record a quick sale</div>
+          </div>
+          <div class="qcard" onclick="toast('New Expense','Feature coming soon')">
+            <div class="qcard-sigil">E</div>
+            <div class="qcard-title">New Expense</div>
+            <div class="qcard-desc">Add a shop expense</div>
+          </div>
+          <div class="qcard" onclick="go('purchase'); openModal('mPO')">
+            <div class="qcard-sigil">B</div>
+            <div class="qcard-title">Receive Stock</div>
+            <div class="qcard-desc">Create a purchase order</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INVENTORY -->
+      <div class="screen" id="sc-inventory">
+        <div class="page-head">
+          <div>
+            <div class="page-title">Inventory</div>
+            <div class="page-sub">124 products registered</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('mProd')">+ Add Product</button>
+        </div>
+
+        <div class="pills" id="invPills">
+          <button class="pill on" onclick="setPill(0)">All (124)</button>
+          <button class="pill" onclick="setPill(1)">In Stock (98)</button>
+          <button class="pill" onclick="setPill(2)">Low Stock (18)</button>
+          <button class="pill" onclick="setPill(3)">Out (8)</button>
+        </div>
+
+        <div class="card">
+          <div class="card-head" style="padding-bottom:0;">
+            <div class="search" style="margin-bottom:14px;">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" placeholder="Search products..." id="invSearch" onkeyup="filterInv()">
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Barcode</th>
+                  <th>Cost</th>
+                  <th>Price</th>
+                  <th>Stock</th>
+                  <th>Margin</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="invBody">
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av">Ol</div>
+                      <div><div class="prod-name">Olive Oil 1L</div><div class="prod-sku">PRD-001</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">6223001234567</td>
+                  <td class="cell-num">320.00</td>
+                  <td class="cell-num">450.00</td>
+                  <td><div class="sbar"><div class="sbar-track"><div class="sbar-fill ok" style="width:85%"></div></div>42</div></td>
+                  <td class="cell-num cell-good">40.6%</td>
+                  <td><span class="tag tag-good">In Stock</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av">Cs</div>
+                      <div><div class="prod-name">Medium Couscous 1kg</div><div class="prod-sku">PRD-002</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">6223001234568</td>
+                  <td class="cell-num">180.00</td>
+                  <td class="cell-num">290.00</td>
+                  <td><div class="sbar"><div class="sbar-track"><div class="sbar-fill ok" style="width:72%"></div></div>36</div></td>
+                  <td class="cell-num cell-good">61.1%</td>
+                  <td><span class="tag tag-good">In Stock</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av">Dt</div>
+                      <div><div class="prod-name">Deglet Nour Dates 500g</div><div class="prod-sku">PRD-003</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">6223001234569</td>
+                  <td class="cell-num">650.00</td>
+                  <td class="cell-num">1,200.00</td>
+                  <td><div class="sbar"><div class="sbar-track"><div class="sbar-fill low" style="width:24%"></div></div>12</div></td>
+                  <td class="cell-num cell-good">84.6%</td>
+                  <td><span class="tag tag-warn">Low</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av">Mk</div>
+                      <div><div class="prod-name">UHT Milk 1L</div><div class="prod-sku">PRD-004</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">6223001234570</td>
+                  <td class="cell-num">95.00</td>
+                  <td class="cell-num">140.00</td>
+                  <td><div class="sbar"><div class="sbar-track"><div class="sbar-fill ok" style="width:90%"></div></div>90</div></td>
+                  <td class="cell-num cell-good">47.4%</td>
+                  <td><span class="tag tag-good">In Stock</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av">Br</div>
+                      <div><div class="prod-name">Whole Bread</div><div class="prod-sku">PRD-005</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">6223001234571</td>
+                  <td class="cell-num">18.00</td>
+                  <td class="cell-num">30.00</td>
+                  <td><div class="sbar"><div class="sbar-track"><div class="sbar-fill low" style="width:5%"></div></div>5</div></td>
+                  <td class="cell-num cell-good">66.7%</td>
+                  <td><span class="tag tag-warn">Low</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av">Sh</div>
+                      <div><div class="prod-name">Herbal Shampoo 400ml</div><div class="prod-sku">PRD-006</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">6223001234572</td>
+                  <td class="cell-num">280.00</td>
+                  <td class="cell-num">450.00</td>
+                  <td><div class="sbar"><div class="sbar-track"><div class="sbar-fill out" style="width:0%"></div></div>0</div></td>
+                  <td class="cell-num cell-good">60.7%</td>
+                  <td><span class="tag tag-bad">Out</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av">Rz</div>
+                      <div><div class="prod-name">Long Grain Rice 1kg</div><div class="prod-sku">PRD-007</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">6223001234573</td>
+                  <td class="cell-num">150.00</td>
+                  <td class="cell-num">220.00</td>
+                  <td><div class="sbar"><div class="sbar-track"><div class="sbar-fill ok" style="width:60%"></div></div>30</div></td>
+                  <td class="cell-num cell-warn">46.7%</td>
+                  <td><span class="tag tag-good">In Stock</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av">Hb</div>
+                      <div><div class="prod-name">White Beans 500g</div><div class="prod-sku">PRD-008</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">6223001234574</td>
+                  <td class="cell-num">120.00</td>
+                  <td class="cell-num">190.00</td>
+                  <td><div class="sbar"><div class="sbar-track"><div class="sbar-fill low" style="width:16%"></div></div>8</div></td>
+                  <td class="cell-num cell-good">58.3%</td>
+                  <td><span class="tag tag-warn">Low</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pg">
+            <span>Showing 1-8 of 124</span>
+            <div class="pg-btns">
+              <button class="pg-btn" disabled>←</button>
+              <button class="pg-btn on">1</button>
+              <button class="pg-btn">2</button>
+              <button class="pg-btn">3</button>
+              <span style="color:var(--text-dim);padding:0 2px;">...</span>
+              <button class="pg-btn">16</button>
+              <button class="pg-btn">→</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PURCHASE ORDERS -->
+      <div class="screen" id="sc-purchase">
+        <div class="page-head">
+          <div>
+            <div class="page-title">Purchase Orders</div>
+            <div class="page-sub">Supplier receipt management</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('mPO')">+ New Order</button>
+        </div>
+
+        <div class="pills">
+          <button class="pill on">All (45)</button>
+          <button class="pill">Draft (3)</button>
+          <button class="pill">Received (42)</button>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>PO Number</th><th>Supplier</th><th>Status</th><th>Items</th><th>Total</th><th>Date</th><th></th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="cell-mono" style="font-weight:500;color:var(--text);">PO-20260625-001</td>
+                  <td>Benali & Fils</td>
+                  <td>
+                    <div class="flow">
+                      <span class="flow-step done"><span class="flow-dot"></span>Draft</span>
+                      <span class="flow-arr">→</span>
+                      <span class="flow-step on"><span class="flow-dot"></span>Received</span>
+                    </div>
+                  </td>
+                  <td>12 items</td>
+                  <td class="cell-num" style="font-weight:500;">24,500</td>
+                  <td class="cell-mono">25/06/26</td>
+                  <td><button class="btn btn-sec btn-sm" onclick="toast('Details','PO received today')">Details</button></td>
+                </tr>
+                <tr>
+                  <td class="cell-mono" style="font-weight:500;color:var(--text);">PO-20260624-003</td>
+                  <td>Distribution Nord</td>
+                  <td>
+                    <div class="flow">
+                      <span class="flow-step done"><span class="flow-dot"></span>Draft</span>
+                      <span class="flow-arr">→</span>
+                      <span class="flow-step done"><span class="flow-dot"></span>Received</span>
+                    </div>
+                  </td>
+                  <td>8 items</td>
+                  <td class="cell-num" style="font-weight:500;">18,200</td>
+                  <td class="cell-mono">24/06/26</td>
+                  <td><button class="btn btn-sec btn-sm">Details</button></td>
+                </tr>
+                <tr>
+                  <td class="cell-mono" style="font-weight:500;color:var(--text);">PO-20260622-002</td>
+                  <td>SARL El-Baraka</td>
+                  <td>
+                    <div class="flow">
+                      <span class="flow-step on"><span class="flow-dot"></span>Draft</span>
+                      <span class="flow-arr">→</span>
+                      <span class="flow-step"><span class="flow-dot"></span>Received</span>
+                    </div>
+                  </td>
+                  <td>24 items</td>
+                  <td class="cell-num" style="font-weight:500;">42,000</td>
+                  <td class="cell-mono">22/06/26</td>
+                  <td><button class="btn btn-primary btn-sm">Receive</button></td>
+                </tr>
+                <tr>
+                  <td class="cell-mono" style="font-weight:500;color:var(--text);">PO-20260620-001</td>
+                  <td>Benali & Fils</td>
+                  <td>
+                    <div class="flow">
+                      <span class="flow-step done"><span class="flow-dot"></span>Draft</span>
+                      <span class="flow-arr">→</span>
+                      <span class="flow-step done"><span class="flow-dot"></span>Received</span>
+                    </div>
+                  </td>
+                  <td>15 items</td>
+                  <td class="cell-num" style="font-weight:500;">31,500</td>
+                  <td class="cell-mono">20/06/26</td>
+                  <td><button class="btn btn-sec btn-sm">Details</button></td>
+                </tr>
+                <tr>
+                  <td class="cell-mono" style="font-weight:500;color:var(--text);">PO-20260618-004</td>
+                  <td>Comptoir du Sud</td>
+                  <td>
+                    <div class="flow">
+                      <span class="flow-step done"><span class="flow-dot"></span>Draft</span>
+                      <span class="flow-arr">→</span>
+                      <span class="flow-step done"><span class="flow-dot"></span>Received</span>
+                    </div>
+                  </td>
+                  <td>6 items</td>
+                  <td class="cell-num" style="font-weight:500;">12,800</td>
+                  <td class="cell-mono">18/06/26</td>
+                  <td><button class="btn btn-sec btn-sm">Details</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUPPLIERS -->
+      <div class="screen" id="sc-suppliers">
+        <div class="page-head">
+          <div>
+            <div class="page-title">Suppliers</div>
+            <div class="page-sub">8 suppliers registered</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('mSupp')">+ Add Supplier</button>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Supplier</th><th>Phone</th><th>Notes</th><th>Orders</th><th></th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av" style="font-size:10px;">B&F</div>
+                      <div><div class="prod-name">Benali & Fils</div><div class="prod-sku">Alger, Bab El Oued</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">0550 12 34 56</td>
+                  <td style="color:var(--text-sec);max-width:220px;overflow:hidden;text-overflow:ellipsis;">Main supplier for oil & couscous</td>
+                  <td><span class="tag">18 orders</span></td>
+                  <td><button class="btn btn-sec btn-sm" onclick="go('purchase')">View</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av" style="font-size:10px;">DN</div>
+                      <div><div class="prod-name">Distribution Nord</div><div class="prod-sku">Alger, Hussein Dey</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">0771 23 45 67</td>
+                  <td style="color:var(--text-sec);">Fast delivery</td>
+                  <td><span class="tag">12 orders</span></td>
+                  <td><button class="btn btn-sec btn-sm">View</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av" style="font-size:10px;">EB</div>
+                      <div><div class="prod-name">SARL El-Baraka</div><div class="prod-sku">Blida</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">0254 98 76 54</td>
+                  <td style="color:var(--text-sec);">Organic products & dates</td>
+                  <td><span class="tag">8 orders</span></td>
+                  <td><button class="btn btn-sec btn-sm">View</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av" style="font-size:10px;">CS</div>
+                      <div><div class="prod-name">Comptoir du Sud</div><div class="prod-sku">Ouargla</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">0668 45 67 89</td>
+                  <td style="color:var(--text-sec);">Sahara date specialist</td>
+                  <td><span class="tag">5 orders</span></td>
+                  <td><button class="btn btn-sec btn-sm">View</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="prod">
+                      <div class="prod-av" style="font-size:10px;">LM</div>
+                      <div><div class="prod-name">Laiterie du Mitidja</div><div class="prod-sku">Medea</div></div>
+                    </div>
+                  </td>
+                  <td class="cell-mono">0555 11 22 33</td>
+                  <td style="color:var(--text-sec);">Fresh dairy products</td>
+                  <td><span class="tag">2 orders</span></td>
+                  <td><button class="btn btn-sec btn-sm">View</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- BARCODES -->
+      <div class="screen" id="sc-barcodes">
+        <div class="page-head">
+          <div>
+            <div class="page-title">Barcodes & Pricing</div>
+            <div class="page-sub">Barcode management and price editing</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-body">
+            <div class="field" style="margin-bottom:0;">
+              <label class="field-lbl">Scan Product (USB Scanner)</label>
+              <div class="bc-wrap">
+                <span class="bc-ico">||</span>
+                <input type="text" class="form-input" placeholder="Scan or type barcode..." style="padding-left:32px;" autofocus>
+              </div>
+              <div class="field-hint">USB scanner emulates keyboard input. Point and scan.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Product</th><th>Barcode</th><th>Cost</th><th>Price</th><th>Margin</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><div class="prod"><div class="prod-av">Ol</div><div class="prod-name">Olive Oil 1L</div></div></td>
+                  <td><input class="inedit" value="6223001234567" style="text-align:left;width:130px;"></td>
+                  <td><input class="inedit" value="320.00"></td>
+                  <td><input class="inedit" value="450.00" style="font-weight:500;"></td>
+                  <td class="cell-num cell-good">40.6%</td>
+                </tr>
+                <tr>
+                  <td><div class="prod"><div class="prod-av">Cs</div><div class="prod-name">Medium Couscous 1kg</div></div></td>
+                  <td><input class="inedit" value="6223001234568" style="text-align:left;width:130px;"></td>
+                  <td><input class="inedit" value="180.00"></td>
+                  <td><input class="inedit" value="290.00" style="font-weight:500;"></td>
+                  <td class="cell-num cell-good">61.1%</td>
+                </tr>
+                <tr>
+                  <td><div class="prod"><div class="prod-av">Dt</div><div class="prod-name">Deglet Nour Dates 500g</div></div></td>
+                  <td><input class="inedit" value="6223001234569" style="text-align:left;width:130px;"></td>
+                  <td><input class="inedit" value="650.00"></td>
+                  <td><input class="inedit" value="1,200.00" style="font-weight:500;"></td>
+                  <td class="cell-num cell-good">84.6%</td>
+                </tr>
+                <tr>
+                  <td><div class="prod"><div class="prod-av">Mk</div><div class="prod-name">UHT Milk 1L</div></div></td>
+                  <td><input class="inedit" value="6223001234570" style="text-align:left;width:130px;"></td>
+                  <td><input class="inedit" value="95.00"></td>
+                  <td><input class="inedit" value="140.00" style="font-weight:500;"></td>
+                  <td class="cell-num cell-good">47.4%</td>
+                </tr>
+                <tr>
+                  <td><div class="prod"><div class="prod-av">Br</div><div class="prod-name">Whole Bread</div></div></td>
+                  <td><input class="inedit" value="6223001234571" style="text-align:left;width:130px;"></td>
+                  <td><input class="inedit" value="18.00"></td>
+                  <td><input class="inedit" value="30.00" style="font-weight:500;"></td>
+                  <td class="cell-num cell-good">66.7%</td>
+                </tr>
+                <tr>
+                  <td><div class="prod"><div class="prod-av">Sh</div><div class="prod-name">Herbal Shampoo 400ml</div></div></td>
+                  <td><input class="inedit" value="6223001234572" style="text-align:left;width:130px;"></td>
+                  <td><input class="inedit" value="280.00"></td>
+                  <td><input class="inedit" value="450.00" style="font-weight:500;"></td>
+                  <td class="cell-num cell-good">60.7%</td>
+                </tr>
+                <tr>
+                  <td><div class="prod"><div class="prod-av">Rz</div><div class="prod-name">Long Grain Rice 1kg</div></div></td>
+                  <td><input class="inedit" value="6223001234573" style="text-align:left;width:130px;"></td>
+                  <td><input class="inedit" value="150.00"></td>
+                  <td><input class="inedit" value="220.00" style="font-weight:500;"></td>
+                  <td class="cell-num cell-warn">46.7%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPENSES -->
+      <div class="screen" id="sc-expenses">
+        <div class="page-head">
+          <div>
+            <div class="page-title">Expenses</div>
+            <div class="page-sub">Shop expense tracking</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('mExp')">+ New Expense</button>
+        </div>
+
+        <div class="pills">
+          <button class="pill on">Day</button>
+          <button class="pill">Week</button>
+          <button class="pill">Month</button>
+          <button class="pill">Custom</button>
+        </div>
+
+        <div class="stats" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="stat">
+            <div class="stat-label">Total Expenses</div>
+            <div class="stat-val">8,200 DA</div>
+            <div class="stat-delta">Today</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Top Category</div>
+            <div class="stat-val" style="font-size:17px;">Electricity</div>
+            <div class="stat-delta">3,200 DA (39%)</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Count</div>
+            <div class="stat-val">4</div>
+            <div class="stat-delta">Today</div>
+          </div>
+        </div>
+
+        <div class="cols-2" style="grid-template-columns: 1fr 1fr;">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">Expense List</div>
+              <span style="font-size:11px;color:var(--text-dim);font-family:var(--mono);">25 Jun 2026</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Date</th><th>Category</th><th>Description</th><th class="cell-num">Amount</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="cell-mono">25/06</td>
+                    <td><span class="tag tag-bad">Electricity</span></td>
+                    <td>Monthly bill June</td>
+                    <td class="cell-num" style="font-weight:500;">3,200</td>
+                  </tr>
+                  <tr>
+                    <td class="cell-mono">25/06</td>
+                    <td><span class="tag tag-warn">Delivery</span></td>
+                    <td>Transport Benali supplier</td>
+                    <td class="cell-num" style="font-weight:500;">500</td>
+                  </tr>
+                  <tr>
+                    <td class="cell-mono">25/06</td>
+                    <td><span class="tag">Water</span></td>
+                    <td>SEAAL bill</td>
+                    <td class="cell-num" style="font-weight:500;">800</td>
+                  </tr>
+                  <tr>
+                    <td class="cell-mono">25/06</td>
+                    <td><span class="tag">Other</span></td>
+                    <td>Packaging & bags</td>
+                    <td class="cell-num" style="font-weight:500;">3,700</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><div class="card-title">By Category</div></div>
+            <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+              <div class="donut-wrap">
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r="50" fill="none" stroke="var(--raised)" stroke-width="14"/>
+                  <circle cx="60" cy="60" r="50" fill="none" stroke="var(--bad)" stroke-width="14" stroke-dasharray="78.5 235.5" stroke-dashoffset="0" stroke-linecap="round" style="opacity:0.6"/>
+                  <circle cx="60" cy="60" r="50" fill="none" stroke="var(--text-dim)" stroke-width="14" stroke-dasharray="39.2 235.5" stroke-dashoffset="-78.5" stroke-linecap="round" style="opacity:0.4"/>
+                  <circle cx="60" cy="60" r="50" fill="none" stroke="var(--warn)" stroke-width="14" stroke-dasharray="31.4 235.5" stroke-dashoffset="-117.7" stroke-linecap="round" style="opacity:0.5"/>
+                  <circle cx="60" cy="60" r="50" fill="none" stroke="var(--text-sec)" stroke-width="14" stroke-dasharray="86.4 235.5" stroke-dashoffset="-149.1" stroke-linecap="round" style="opacity:0.3"/>
+                </svg>
+                <div class="donut-c">
+                  <div class="donut-v">8,200</div>
+                  <div class="donut-l">DA total</div>
+                </div>
+              </div>
+              <div style="width:100%;display:flex;flex-direction:column;gap:8px;padding:0 8px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                  <span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--bad);opacity:0.6;display:inline-block;"></span> Electricity</span>
+                  <span style="font-weight:500;font-family:var(--mono);">3,200 (39%)</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                  <span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--text-sec);opacity:0.3;display:inline-block;"></span> Other</span>
+                  <span style="font-weight:500;font-family:var(--mono);">3,700 (45%)</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                  <span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--warn);opacity:0.5;display:inline-block;"></span> Delivery</span>
+                  <span style="font-weight:500;font-family:var(--mono);">500 (6%)</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                  <span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--text-dim);opacity:0.4;display:inline-block;"></span> Water</span>
+                  <span style="font-weight:500;font-family:var(--mono);">800 (10%)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- END OF DAY -->
+      <div class="screen" id="sc-eod">
+        <div class="page-head">
+          <div>
+            <div class="page-title">End of Day</div>
+            <div class="page-sub">Daily closing summary</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="date" class="field input" value="2026-06-25" style="width:auto;padding:5px 10px;font-size:12px;background:var(--raised);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-family:var(--font);">
+            <button class="btn btn-sec btn-sm" onclick="toast('Export','Summary copied to clipboard')">Copy</button>
+            <button class="btn btn-primary btn-sm" onclick="window.print()">Print</button>
+          </div>
+        </div>
+
+        <div class="sum-grid">
+          <div class="sum-card hl">
+            <div class="sum-h">Summary — 25 June 2026</div>
+            <div class="sum-row"><span style="color:var(--text-sec);">Total Sales</span><span style="font-weight:500;">48,750 DA</span></div>
+            <div class="sum-row"><span style="color:var(--text-sec);">Cost of Goods Sold</span><span style="font-weight:500;color:var(--bad);">-22,130 DA</span></div>
+            <div class="sum-row"><span style="color:var(--text-sec);">Operating Expenses</span><span style="font-weight:500;color:var(--bad);">-8,200 DA</span></div>
+            <div class="sum-row t"><span>Net Profit</span><span style="color:var(--good);">18,420 DA</span></div>
+            <div class="sum-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px;">
+              <span style="color:var(--text-sec);">Profit Margin</span>
+              <span style="font-weight:600;">37.8%</span>
+            </div>
+          </div>
+
+          <div class="sum-card">
+            <div class="sum-h">Sales Detail</div>
+            <div class="sum-row"><span style="color:var(--text-sec);">Transactions</span><span style="font-weight:500;">42</span></div>
+            <div class="sum-row"><span style="color:var(--text-sec);">Average Basket</span><span style="font-weight:500;">1,161 DA</span></div>
+            <div class="sum-row"><span style="color:var(--text-sec);">Top Product</span><span style="font-weight:500;">Olive Oil 1L</span></div>
+            <div class="sum-row"><span style="color:var(--text-sec);">Peak Hour</span><span style="font-weight:500;">16:00 - 17:00</span></div>
+            <div class="sum-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px;">
+              <span style="color:var(--text-sec);">Stock Received</span>
+              <span style="font-weight:500;color:var(--accent);">24 items</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Today's Transactions</div>
+            <span style="font-size:11px;color:var(--text-dim);">42 transactions</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Time</th><th>Items</th><th class="cell-num">Qty</th><th class="cell-num">Total</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="cell-mono">16:42</td>
+                  <td>Olive Oil 1L, Couscous</td>
+                  <td class="cell-num">5</td>
+                  <td class="cell-num" style="font-weight:500;">2,690</td>
+                </tr>
+                <tr>
+                  <td class="cell-mono">16:15</td>
+                  <td>UHT Milk x6, Bread x10</td>
+                  <td class="cell-num">16</td>
+                  <td class="cell-num" style="font-weight:500;">1,140</td>
+                </tr>
+                <tr>
+                  <td class="cell-mono">15:48</td>
+                  <td>Deglet Nour Dates 1kg</td>
+                  <td class="cell-num">1</td>
+                  <td class="cell-num" style="font-weight:500;">1,200</td>
+                </tr>
+                <tr>
+                  <td class="cell-mono">15:22</td>
+                  <td>Rice 1kg, White Beans</td>
+                  <td class="cell-num">3</td>
+                  <td class="cell-num" style="font-weight:500;">600</td>
+                </tr>
+                <tr>
+                  <td class="cell-mono">14:55</td>
+                  <td>Olive Oil 1L x2</td>
+                  <td class="cell-num">2</td>
+                  <td class="cell-num" style="font-weight:500;">900</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pg">
+            <span>Showing 1-5 of 42</span>
+            <div class="pg-btns">
+              <button class="pg-btn" disabled>←</button>
+              <button class="pg-btn on">1</button>
+              <button class="pg-btn">2</button>
+              <button class="pg-btn">3</button>
+              <button class="pg-btn">→</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-head"><div class="card-title">Profit Calculation</div></div>
+          <div class="card-body">
+            <div class="math">
+              <div class="math-line"><span>Sales</span><span>48,750.00 DA</span></div>
+              <div class="math-line op"><span>− Cost of Goods Sold</span><span>22,130.00 DA</span></div>
+              <div class="math-line op"><span>− Operating Expenses</span><span>8,200.00 DA</span></div>
+              <div class="math-line res"><span>= Net Profit</span><span>18,420.00 DA</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- MODALS -->
+
+<!-- Add Product -->
+<div class="modal-bg" id="mProd">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Add Product</div>
+      <button class="modal-x" onclick="closeModal('mProd')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">Product Name</label>
+          <input type="text" placeholder="e.g. Olive Oil 1L">
+        </div>
+        <div class="field">
+          <label class="field-lbl">Barcode</label>
+          <input type="text" placeholder="6223..." style="font-family:var(--mono);">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">Cost Price (DA)</label>
+          <input type="number" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label class="field-lbl">Selling Price (DA)</label>
+          <input type="number" placeholder="0.00">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">Initial Stock</label>
+          <input type="number" placeholder="0">
+        </div>
+        <div class="field">
+          <label class="field-lbl">Low Stock Threshold</label>
+          <input type="number" value="10">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Category</label>
+        <select>
+          <option>Groceries</option>
+          <option>Beverages</option>
+          <option>Hygiene</option>
+          <option>Cleaning</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Notes</label>
+        <textarea rows="2" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-sec" onclick="closeModal('mProd')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('mProd'); toast('Saved','Product added successfully')">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add PO -->
+<div class="modal-bg" id="mPO">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-head">
+      <div class="modal-title">New Purchase Order</div>
+      <button class="modal-x" onclick="closeModal('mPO')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">Supplier</label>
+          <select>
+            <option>Benali & Fils</option>
+            <option>Distribution Nord</option>
+            <option>SARL El-Baraka</option>
+            <option>Comptoir du Sud</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-lbl">Expected Date</label>
+          <input type="date" value="2026-06-25">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Notes</label>
+        <textarea rows="2" placeholder="Order notes..."></textarea>
+      </div>
+      <div style="height:1px;background:var(--border);margin:16px 0;"></div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:10px;">Items</div>
+      <div class="field-row">
+        <div class="field" style="flex:2;">
+          <select>
+            <option>Olive Oil 1L</option>
+            <option>Medium Couscous 1kg</option>
+            <option>Deglet Nour Dates 500g</option>
+            <option>UHT Milk 1L</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1;"><input type="number" value="12" placeholder="Qty"></div>
+        <div class="field" style="flex:1;"><input type="number" value="320" placeholder="Unit"></div>
+      </div>
+      <div style="text-align:right;font-size:12px;color:var(--text-dim);margin-top:4px;">
+        Line total: <span style="font-weight:500;color:var(--text);font-family:var(--mono);">3,840 DA</span>
+      </div>
+      <button class="btn btn-sec btn-sm" style="margin-top:8px;">+ Add Line</button>
+    </div>
+    <div class="modal-foot">
+      <div style="margin-right:auto;font-size:13px;font-weight:600;font-family:var(--mono);">Total: 3,840 DA</div>
+      <button class="btn btn-sec" onclick="closeModal('mPO')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('mPO'); toast('Saved','Purchase order created')">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Supplier -->
+<div class="modal-bg" id="mSupp">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Add Supplier</div>
+      <button class="modal-x" onclick="closeModal('mSupp')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-lbl">Supplier Name</label>
+        <input type="text" placeholder="Full name or company">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">Phone</label>
+          <input type="tel" placeholder="05xx xx xx xx">
+        </div>
+        <div class="field">
+          <label class="field-lbl">City</label>
+          <input type="text" placeholder="e.g. Algiers">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Notes</label>
+        <textarea rows="2" placeholder="Additional info..."></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-sec" onclick="closeModal('mSupp')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('mSupp'); toast('Saved','Supplier added')">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Expense -->
+<div class="modal-bg" id="mExp">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">New Expense</div>
+      <button class="modal-x" onclick="closeModal('mExp')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field">
+          <label class="field-lbl">Date</label>
+          <input type="date" value="2026-06-25">
+        </div>
+        <div class="field">
+          <label class="field-lbl">Category</label>
+          <select>
+            <option>Delivery</option>
+            <option>Electricity</option>
+            <option>Water</option>
+            <option>Rent</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Description</label>
+        <input type="text" placeholder="Expense description...">
+      </div>
+      <div class="field">
+        <label class="field-lbl">Amount (DA)</label>
+        <input type="number" placeholder="0.00">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-sec" onclick="closeModal('mExp')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('mExp'); toast('Saved','Expense recorded')">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div class="toast-box" id="tBox"></div>
+
+<script>
+  const titles = {
+    dashboard: 'Dashboard',
+    inventory: 'Inventory',
+    purchase: 'Purchase Orders',
+    suppliers: 'Suppliers',
+    barcodes: 'Barcodes & Pricing',
+    expenses: 'Expenses',
+    eod: 'End of Day'
+  };
+
+  function go(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+    document.getElementById('sc-' + id).classList.add('on');
+    document.querySelectorAll('.nav-item[data-sc]').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.nav-item[data-sc]').forEach(n => { if(n.dataset.sc === id) n.classList.add('active'); });
+    document.getElementById('crumb').textContent = titles[id];
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sover').classList.remove('open');
+    window.scrollTo(0,0);
+  }
+
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.modal-bg').forEach(bg => {
+    bg.addEventListener('click', e => { if(e.target === bg) { bg.classList.remove('open'); document.body.style.overflow = ''; } });
+  });
+
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape') {
+      document.querySelectorAll('.modal-bg.open').forEach(m => { m.classList.remove('open'); });
+      document.body.style.overflow = '';
+    }
+  });
+
+  function toast(t, d) {
+    const box = document.getElementById('tBox');
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = `<div class="toast-sigil">OK</div><div><div class="toast-t">${t}</div><div class="toast-d">${d}</div></div>`;
+    box.appendChild(el);
+    setTimeout(() => el.remove(), 2800);
+  }
+
+  function setPill(idx) {
+    document.querySelectorAll('#invPills .pill').forEach((p,i) => p.classList.toggle('on', i===idx));
+  }
+
+  function filterInv() {
+    const v = document.getElementById('invSearch').value.toLowerCase();
+    document.querySelectorAll('#invBody tr').forEach(r => r.style.display = r.textContent.toLowerCase().includes(v) ? '' : 'none');
+  }
+
+  function toggleSide() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sover').classList.toggle('open');
+  }
+
+  document.getElementById('globSearch').addEventListener('keydown', e => {
+    if(e.key === 'Enter') toast('Search', 'Searching: ' + e.target.value);
+  });
+
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.stat-val').forEach(el => {
+      el.style.opacity = '0'; el.style.transform = 'translateY(6px)';
+      setTimeout(() => { el.style.transition = 'all 0.4s ease'; el.style.opacity = '1'; el.style.transform = 'translateY(0)'; }, 80);
+    });
+  });
+</script>
+
+</body>
+</html>
