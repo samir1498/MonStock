@@ -1,0 +1,3 @@
+[alias]
+wrun = "watch -c -x run -w src/ -w ../monstock-core/src/"
+wcheck = "watch -c -x check -w src/ -w ../monstock-core/src/"
