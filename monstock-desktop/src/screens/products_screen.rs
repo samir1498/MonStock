@@ -13,9 +13,21 @@ pub struct ProductsState {
     pub form_selling_price: String,
     pub form_error: Option<String>,
     pub pagination: PaginationState,
+    pub sort: SortState,
 }
 
-
+fn sort_products(items: &mut [monstock_core::models::Product], sort: &SortState) {
+    let asc = sort.ascending;
+    match sort.column {
+        Some(0) => items.sort_by(|a, b| compare_str(&a.name, &b.name, asc)),
+        Some(1) => items.sort_by(|a, b| compare_str(a.barcode.as_deref().unwrap_or(""), b.barcode.as_deref().unwrap_or(""), asc)),
+        Some(2) => items.sort_by(|a, b| compare_float(a.cost_price, b.cost_price, asc)),
+        Some(3) => items.sort_by(|a, b| compare_float(a.selling_price, b.selling_price, asc)),
+        Some(4) => items.sort_by(|a, b| compare_int(a.quantity_on_hand, b.quantity_on_hand, asc)),
+        Some(5) => items.sort_by(|a, b| compare_float(a.margin_pct(), b.margin_pct(), asc)),
+        _ => {}
+    }
+}
 
 impl ProductsState {
     fn open_add(&mut self) {
@@ -43,17 +55,17 @@ impl ProductsState {
         self.editing_id = None;
     }
 
-    fn save(&mut self, conn: &mut diesel::SqliteConnection) -> bool {
+    fn save(&mut self, lang: Lang, conn: &mut diesel::SqliteConnection) -> bool {
         let name = self.form_name.trim().to_string();
         if name.is_empty() {
-            self.form_error = Some("Name is required".to_string());
+            self.form_error = Some(i18n::t("name_required", lang).to_string());
             return false;
         }
         let barcode = if self.form_barcode.trim().is_empty() { None } else { Some(self.form_barcode.trim().to_string()) };
-        let cost_price = match self.form_cost_price.parse::<f64>() { Ok(v) if v >= 0.0 => v, _ => { self.form_error = Some("Invalid cost price".to_string()); return false } };
-        let selling_price = match self.form_selling_price.parse::<f64>() { Ok(v) if v >= 0.0 => v, _ => { self.form_error = Some("Invalid selling price".to_string()); return false } };
+        let cost_price = match self.form_cost_price.parse::<f64>() { Ok(v) if v >= 0.0 => v, _ => { self.form_error = Some(i18n::t("invalid_cost_price", lang).to_string()); return false } };
+        let selling_price = match self.form_selling_price.parse::<f64>() { Ok(v) if v >= 0.0 => v, _ => { self.form_error = Some(i18n::t("invalid_selling_price", lang).to_string()); return false } };
 
-        let new_product = monstock_core::models::NewProduct { name, barcode, cost_price, selling_price };
+        let new_product = monstock_core::models::NewProduct { name, barcode, cost_price, selling_price, quantity_on_hand: 0 };
 
         let result = if let Some(id) = self.editing_id {
             monstock_core::services::product_service::update(conn, id, &new_product).map(|_| ())
@@ -69,6 +81,15 @@ impl ProductsState {
 
     fn delete(&mut self, conn: &mut diesel::SqliteConnection, id: i32) {
         let _ = monstock_core::services::product_service::delete(conn, id);
+    }
+}
+
+impl components::ModalScreen for ProductsState {
+    fn save(&mut self, lang: Lang, conn: &mut diesel::SqliteConnection) -> bool {
+        self.save(lang, conn)
+    }
+    fn close_modal(&mut self) {
+        self.close_modal();
     }
 }
 
@@ -89,14 +110,16 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
     ui.add_space(8.0);
     card(ui, is_dark, |ui| {
         state.pagination.total = monstock_core::services::product_service::count_all(conn).unwrap_or(0);
-        let (products, error) = match monstock_core::services::product_service::find_paginated(conn, state.pagination.page, state.pagination.per_page) {
+        let (mut products, error) = match monstock_core::services::product_service::find_paginated(conn, state.pagination.page, state.pagination.per_page) {
             Ok(list) => (list, None),
             Err(e) => (vec![], Some(format!("{}: {}", i18n::t("error", lang), e))),
         };
+        let mut s = state.sort.clone();
+        sort_products(&mut products, &s);
         components::data_table(ui, "products_grid", &[
             i18n::t("product", lang), i18n::t("barcode", lang), i18n::t("cost_price", lang),
             i18n::t("selling_price", lang), i18n::t("stock", lang), i18n::t("margin", lang), "",
-        ], &products, error.as_deref(), |ui, p| {
+        ], &products, error.as_deref(), Some(&mut s), |ui, p| {
             ui.vertical(|ui| {
                 ui.add(egui::Label::new(
                     egui::RichText::new(&p.name).size(12.5).color(text_color(is_dark)).strong()
@@ -122,6 +145,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 }
             });
         });
+        state.sort = s;
         pagination_ui(ui, &mut state.pagination, is_dark);
     });
 
@@ -159,10 +183,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 ui.add(egui::TextEdit::singleline(&mut state.form_selling_price).desired_width(80.0));
                 ui.label(" DA");
             });
-            components::modal_actions(ui, lang, err.as_deref(), |is_save| {
-                if is_save { state.save(conn); }
-                else { state.close_modal(); }
-            });
+            components::modal_actions(ui, lang, err.as_deref(), conn, state);
         });
     }
 }

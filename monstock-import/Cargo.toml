@@ -1,0 +1,8 @@
+[package]
+name = "monstock-import"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+monstock-core = { path = "../monstock-core" }
+diesel = { workspace = true, features = ["sqlite"] }

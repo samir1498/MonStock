@@ -16,6 +16,7 @@ fn make_product(name: &str) -> NewProduct {
         barcode: None,
         cost_price: 100.0,
         selling_price: 150.0,
+        quantity_on_hand: 0,
     }
 }
 
@@ -75,6 +76,7 @@ fn test_find_product_by_barcode() {
         barcode: Some("123456789".to_string()),
         cost_price: 50.0,
         selling_price: 80.0,
+        quantity_on_hand: 0,
     };
     product_repo::insert_product(&mut conn, &p).unwrap();
 
@@ -96,6 +98,7 @@ fn test_update_product_does_not_change_cost_price() {
         barcode: None,
         cost_price: 999.0,
         selling_price: 200.0,
+        quantity_on_hand: 0,
     };
     product_repo::update_product(&mut conn, p.id, &update).unwrap();
 
@@ -103,16 +106,6 @@ fn test_update_product_does_not_change_cost_price() {
     assert_eq!(updated.name, "Renamed");
     assert_eq!(updated.cost_price, 999.0);
     assert_eq!(updated.selling_price, 200.0);
-}
-
-#[test]
-fn test_set_product_cost_price() {
-    let (mut conn, _f) = setup_db();
-    let p = product_repo::insert_product(&mut conn, &make_product("CostTest")).unwrap();
-    product_repo::set_product_cost_price(&mut conn, p.id, 75.0).unwrap();
-
-    let updated = product_repo::find_product_by_id(&mut conn, p.id).unwrap().unwrap();
-    assert_eq!(updated.cost_price, 75.0);
 }
 
 #[test]
@@ -134,6 +127,7 @@ fn test_unique_barcode_enforced() {
             barcode: Some("same".to_string()),
             cost_price: 10.0,
             selling_price: 20.0,
+            quantity_on_hand: 0,
         },
     )
     .unwrap();
@@ -144,6 +138,7 @@ fn test_unique_barcode_enforced() {
             barcode: Some("same".to_string()),
             cost_price: 10.0,
             selling_price: 20.0,
+            quantity_on_hand: 0,
         },
     );
     assert!(dup.is_err());
@@ -264,6 +259,7 @@ fn test_po_receive_increments_existing_product_stock() {
             barcode: None,
             cost_price: 30.0,
             selling_price: 60.0,
+            quantity_on_hand: 0,
         },
     )
     .unwrap();

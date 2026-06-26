@@ -3,6 +3,17 @@ use crate::i18n::{self, Lang};
 use crate::style::*;
 use crate::components;
 
+fn sort_purchase_orders(items: &mut [monstock_core::models::PurchaseOrder], sort: &SortState) {
+    let asc = sort.ascending;
+    match sort.column {
+        Some(0) => items.sort_by(|a, b| compare_str(&a.purchase_order_number, &b.purchase_order_number, asc)),
+        Some(2) => items.sort_by(|a, b| compare_float(a.total, b.total, asc)),
+        Some(3) => items.sort_by(|a, b| compare_str(&a.status, &b.status, asc)),
+        Some(4) => items.sort_by(|a, b| compare_str(&a.created_at, &b.created_at, asc)),
+        _ => {}
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct PoItemForm {
     product_name: String,
@@ -18,6 +29,7 @@ pub struct PurchaseOrdersState {
     pub form_items: Vec<PoItemForm>,
     pub form_error: Option<String>,
     pub pagination: PaginationState,
+    pub sort: SortState,
 }
 
 impl Default for PurchaseOrdersState {
@@ -30,7 +42,17 @@ impl Default for PurchaseOrdersState {
             form_items: vec![PoItemForm { product_name: String::new(), quantity: "1".to_string(), unit_cost: "0".to_string() }],
             form_error: None,
             pagination: Default::default(),
+            sort: Default::default(),
         }
+    }
+}
+
+impl components::ModalScreen for PurchaseOrdersState {
+    fn save(&mut self, lang: Lang, conn: &mut diesel::SqliteConnection) -> bool {
+        self.save(lang, conn)
+    }
+    fn close_modal(&mut self) {
+        self.close_modal();
     }
 }
 
@@ -53,9 +75,9 @@ impl PurchaseOrdersState {
         format!("PO-{}", chrono::Local::now().format("%Y%m%d-%H%M%S"))
     }
 
-    fn save(&mut self, conn: &mut diesel::SqliteConnection) -> bool {
+    fn save(&mut self, lang: Lang, conn: &mut diesel::SqliteConnection) -> bool {
         if self.form_items.is_empty() || self.form_items.iter().all(|i| i.product_name.trim().is_empty()) {
-            self.form_error = Some("At least one item is required".to_string());
+            self.form_error = Some(i18n::t("min_one_item", lang).to_string());
             return false;
         }
 
@@ -116,16 +138,18 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
     ui.add_space(8.0);
     card(ui, is_dark, |ui| {
         state.pagination.total = monstock_core::services::purchase_order_service::count_all(conn).unwrap_or(0);
-        let (orders, error) = match monstock_core::services::purchase_order_service::find_paginated(conn, state.pagination.page, state.pagination.per_page) {
+        let (mut orders, error) = match monstock_core::services::purchase_order_service::find_paginated(conn, state.pagination.page, state.pagination.per_page) {
             Ok(list) => (list, None),
             Err(e) => (vec![], Some(format!("{}: {}", i18n::t("error", lang), e))),
         };
+        let mut s = state.sort.clone();
+        sort_purchase_orders(&mut orders, &s);
         components::data_table(ui, "po_grid", &[
             i18n::t("name", lang), i18n::t("supplier", lang), i18n::t("total", lang),
             i18n::t("status", lang), i18n::t("date", lang), "", "",
-        ], &orders, error.as_deref(), |ui, po| {
+        ], &orders, error.as_deref(), Some(&mut s), |ui, po| {
             mono_value(ui, &po.purchase_order_number, TEXT);
-            let supplier_name = monstock_core::repos::purchase_order_repo::purchase_order_supplier_name(conn, po.supplier_id);
+            let supplier_name = monstock_core::services::purchase_order_service::supplier_name(conn, po.supplier_id);
             mono_value(ui, supplier_name.as_deref().unwrap_or("-"), TEXT_SEC);
             amount_text(ui, &format!("{:.0}", po.total), TEXT);
             let (sc, sl) = if po.status == "Received" { (GOOD, i18n::t("received", lang)) } else { (WARN, i18n::t("draft", lang)) };
@@ -142,6 +166,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             }
             if components::delete_btn(ui, is_dark).clicked() { state.delete(conn, po.id); }
         });
+        state.sort = s;
         pagination_ui(ui, &mut state.pagination, is_dark);
     });
 
@@ -153,7 +178,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new(i18n::t("supplier", lang)).size(13.0).color(text_color(is_dark)).strong());
                 ui.add_space(8.0);
-                let suppliers = monstock_core::repos::supplier_repo::find_all_suppliers(conn).unwrap_or_default();
+                let suppliers = monstock_core::services::supplier_service::find_all(conn).unwrap_or_default();
                 let cur = state.form_supplier_id.and_then(|id| suppliers.iter().find(|s| s.id == id)).map(|s| s.name.clone()).unwrap_or_else(|| "-".to_string());
                 egui::ComboBox::from_id_salt("supplier_combo").selected_text(&cur).width(200.0).show_ui(ui, |ui| {
                     ui.selectable_value(&mut state.form_supplier_id, None, "-");
@@ -193,10 +218,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
 
             ui.add_space(4.0);
             if btn(ui, egui::RichText::new(format!("+ {}", i18n::t("add", lang))).size(12.0).color(ACCENT)).clicked() { state.add_item_row(); }
-            components::modal_actions(ui, lang, err.as_deref(), |is_save| {
-                if is_save { state.save(conn); }
-                else { state.close_modal(); }
-            });
+            components::modal_actions(ui, lang, err.as_deref(), conn, state);
         });
     }
 }

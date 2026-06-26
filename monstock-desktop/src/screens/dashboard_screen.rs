@@ -251,7 +251,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 
                 // fetch activities
                 let txs = monstock_core::services::sale_service::find_transactions_by_date(conn, &today).unwrap_or_default();
-                let exps = monstock_core::repos::expense_repo::find_expenses_by_date_range(conn, &today, &today).unwrap_or_default();
+                let exps = monstock_core::services::expense_service::find_by_date_range(conn, &today, &today).unwrap_or_default();
                 
                 let mut activities = Vec::new();
                 for tx in txs {

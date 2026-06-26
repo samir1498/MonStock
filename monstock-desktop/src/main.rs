@@ -4,7 +4,6 @@ mod i18n;
 mod screens;
 mod style;
 mod icons;
-mod backup;
 mod barcode_scanner;
 mod components;
 
@@ -183,7 +182,7 @@ impl eframe::App for MonStockApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(main_bg).inner_margin(egui::Margin::same(24)))
             .show_inside(ui, |ui| {
-                egui::ScrollArea::vertical()
+                egui::ScrollArea::both()
                     .id_salt("main_scroll")
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
@@ -202,7 +201,7 @@ impl eframe::App for MonStockApp {
                         is_dark, &mut self.sales_state),
                     Screen::Expenses => expenses_screen::show(ui, &mut self.conn, self.lang,
                         is_dark, &mut self.expenses_state),
-                    Screen::Settings => settings_screen::show(ui, self.lang,
+                    Screen::Settings => settings_screen::show(ui, &mut self.conn, self.lang,
                         is_dark, &mut self.settings_state, &self.db_path),
                 }
                 });
@@ -236,12 +235,20 @@ fn system_btn(
     response
 }
 
+fn db_path() -> String {
+    let base = dirs::data_dir().expect("Cannot find data directory");
+    base.join("monstock").join("monstock.db").to_string_lossy().to_string()
+}
+
 fn main() -> eframe::Result {
     env_logger::init();
 
-    let db_path = "monstock.db";
-    backup::backup_if_needed(db_path);
-    let conn = monstock_core::db::open(db_path).expect("Failed to open database");
+    let db_path = db_path();
+    if let Some(parent) = std::path::Path::new(&db_path).parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    monstock_backup::backup_if_needed(&db_path);
+    let conn = monstock_core::db::open(&db_path).expect("Failed to open database");
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

@@ -36,15 +36,6 @@ pub fn count_by_date_range(
     expense_repo::count_expenses_by_range(conn, start_date, end_date)
 }
 
-pub fn find_by_category(
-    conn: &mut SqliteConnection,
-    category: &str,
-    start_date: &str,
-    end_date: &str,
-) -> QueryResult<Vec<Expense>> {
-    expense_repo::find_expenses_by_category(conn, category, start_date, end_date)
-}
-
 pub fn total_by_range(
     conn: &mut SqliteConnection,
     start_date: &str,

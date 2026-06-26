@@ -102,6 +102,11 @@ pub fn t(key: &str, lang: Lang) -> &str {
             "cloud_sync" => "Synchronisation cloud",
             "cloud_sync_info" => "Les sauvegardes sont stockées localement. Pour les sécuriser, copiez ce dossier vers un service cloud comme Google Drive, OneDrive ou Dropbox.",
             "all_platforms" => "Fonctionne sur toutes les plateformes",
+            "name_required" => "Le nom est requis",
+            "invalid_cost_price" => "Prix de revient invalide",
+            "invalid_selling_price" => "Prix de vente invalide",
+            "invalid_amount" => "Montant invalide",
+            "min_one_item" => "Au moins un article est requis",
             _ => key,
         },
         Lang::En => match key {
@@ -184,6 +189,11 @@ pub fn t(key: &str, lang: Lang) -> &str {
             "cloud_sync" => "Cloud sync",
             "cloud_sync_info" => "Backups are stored locally on your device. To keep them safe, copy this folder to a cloud storage service like Google Drive, OneDrive, or Dropbox.",
             "all_platforms" => "Works on all platforms",
+            "name_required" => "Name is required",
+            "invalid_cost_price" => "Invalid cost price",
+            "invalid_selling_price" => "Invalid selling price",
+            "invalid_amount" => "Invalid amount",
+            "min_one_item" => "At least one item is required",
             _ => key,
         },
     }

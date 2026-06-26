@@ -1,9 +1,7 @@
 use diesel::prelude::*;
 use diesel::SqliteConnection;
-use crate::schema::products;
 use crate::models::*;
-use crate::repos::transaction_repo;
-use crate::repos::expense_repo;
+use crate::repos::{transaction_repo, expense_repo, product_repo};
 
 #[derive(Debug, Clone, Default)]
 pub struct DailyStats {
@@ -31,11 +29,7 @@ pub fn low_stock_products(
     conn: &mut SqliteConnection,
     threshold: i32,
 ) -> QueryResult<Vec<Product>> {
-    products::table
-        .filter(products::quantity_on_hand.le(threshold))
-        .order(products::quantity_on_hand.asc())
-        .select(Product::as_select())
-        .load(conn)
+    product_repo::find_low_stock_products(conn, threshold)
 }
 
 pub fn profit(sales_total: f64, cost_price_total: f64, expenses_total: f64) -> f64 {

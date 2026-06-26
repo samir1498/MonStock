@@ -138,3 +138,10 @@ pub fn purchase_order_supplier_name(conn: &mut SqliteConnection, supplier_id: Op
         .first::<String>(conn)
         .ok()
 }
+
+pub fn update_purchase_order_total(conn: &mut SqliteConnection, purchase_order_id: i32, total: f64) -> QueryResult<()> {
+    diesel::update(purchase_orders::table.find(purchase_order_id))
+        .set(purchase_orders::total.eq(total))
+        .execute(conn)
+        .map(|_| ())
+}

@@ -112,8 +112,60 @@ pub fn btn_custom(ui: &mut egui::Ui, button: egui::Button) -> egui::Response {
     r
 }
 
+#[derive(Clone)]
+pub struct SortState {
+    pub column: Option<usize>,
+    pub ascending: bool,
+}
+
+impl Default for SortState {
+    fn default() -> Self {
+        Self { column: None, ascending: true }
+    }
+}
+
+pub fn compare_str(a: &str, b: &str, asc: bool) -> std::cmp::Ordering {
+    if asc { a.cmp(b) } else { b.cmp(a) }
+}
+
+pub fn compare_float(a: f64, b: f64, asc: bool) -> std::cmp::Ordering {
+    if asc { a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal) }
+    else { b.partial_cmp(&a).unwrap_or(std::cmp::Ordering::Equal) }
+}
+
+pub fn compare_int(a: i32, b: i32, asc: bool) -> std::cmp::Ordering {
+    if asc { a.cmp(&b) } else { b.cmp(&a) }
+}
+
 pub fn table_header(ui: &mut egui::Ui, label: &str) {
     ui.colored_label(TEXT_SEC, egui::RichText::new(label).size(12.5).strong());
+}
+
+pub fn sortable_header(ui: &mut egui::Ui, label: &str, idx: usize, sort: &mut SortState) -> bool {
+    let is_active = sort.column == Some(idx);
+    let arrow = if is_active {
+        if sort.ascending { " ▲" } else { " ▼" }
+    } else {
+        ""
+    };
+    let text = format!("{}{}", label, arrow);
+    let color = if is_active { TEXT } else { TEXT_SEC };
+    let r = ui.add(egui::Label::new(
+        egui::RichText::new(text).size(12.5).color(color).strong()
+    ).sense(egui::Sense::click()));
+    if r.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    if r.clicked() {
+        if sort.column == Some(idx) {
+            sort.ascending = !sort.ascending;
+        } else {
+            sort.column = Some(idx);
+            sort.ascending = true;
+        }
+        return true;
+    }
+    false
 }
 
 pub fn mono_value(ui: &mut egui::Ui, value: &str, color: egui::Color32) {

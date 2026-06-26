@@ -52,21 +52,9 @@ pub fn update(
     product_repo::update_product(conn, product_id, product)
 }
 
-pub fn set_cost_price(
-    conn: &mut SqliteConnection,
-    product_id: i32,
-    cost_price: f64,
-) -> QueryResult<()> {
-    product_repo::set_product_cost_price(conn, product_id, cost_price)
-}
-
 pub fn delete(
     conn: &mut SqliteConnection,
     product_id: i32,
 ) -> QueryResult<bool> {
     product_repo::delete_product(conn, product_id)
-}
-
-pub fn margin_pct(product: &Product) -> f64 {
-    product.margin_pct()
 }

@@ -41,12 +41,10 @@ fn seed_products(conn: &mut SqliteConnection) -> Vec<i32> {
             barcode: barcode.clone(),
             cost_price,
             selling_price,
+            quantity_on_hand: qty,
         };
 
         if let Ok(p) = product_service::create(conn, &new_product) {
-            diesel::update(monstock_core::schema::products::table.find(p.id))
-                .set(monstock_core::schema::products::quantity_on_hand.eq(qty))
-                .execute(conn).ok();
             ids.push(p.id);
         }
     }
@@ -176,9 +174,16 @@ fn seed_purchase_orders(conn: &mut SqliteConnection, supplier_ids: &[i32], days_
     }
 }
 
+fn db_path() -> String {
+    let base = dirs::data_dir().expect("Cannot find data directory");
+    base.join("monstock").join("monstock.db").to_string_lossy().to_string()
+}
+
 fn main() {
-    let db_path = "monstock.db";
-    if std::path::Path::new(db_path).exists() {
+    let db_path = db_path();
+    let db_path_shm = format!("{}-shm", db_path);
+    let db_path_wal = format!("{}-wal", db_path);
+    if std::path::Path::new(&db_path).exists() {
         print!("Database exists. Delete and recreate? (y/N): ");
         std::io::stdout().flush().ok();
         let mut input = String::new();
@@ -187,12 +192,16 @@ fn main() {
             println!("Aborting.");
             return;
         }
-        std::fs::remove_file(db_path).ok();
-        std::fs::remove_file("monstock.db-shm").ok();
-        std::fs::remove_file("monstock.db-wal").ok();
+        std::fs::remove_file(&db_path).ok();
+        std::fs::remove_file(&db_path_shm).ok();
+        std::fs::remove_file(&db_path_wal).ok();
     }
 
-    let conn = &mut db::open(db_path).expect("Failed to open database");
+    if let Some(parent) = std::path::Path::new(&db_path).parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    let conn = &mut db::open(&db_path).expect("Failed to open database");
     db::run_migrations(conn);
 
     println!("Seeding 500 products...");

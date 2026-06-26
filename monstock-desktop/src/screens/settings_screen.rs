@@ -2,7 +2,8 @@ use std::path::PathBuf;
 use egui;
 use crate::i18n::{self, Lang};
 use crate::style::*;
-use crate::backup;
+use monstock_backup as backup;
+use monstock_import as import;
 
 #[derive(Default)]
 pub struct SettingsState {
@@ -19,7 +20,7 @@ fn open_file_manager(path: &PathBuf) {
     let _ = std::process::Command::new("explorer").arg(path).spawn();
 }
 
-pub fn show(ui: &mut egui::Ui, lang: Lang, is_dark: bool, state: &mut SettingsState, db_path: &str) {
+pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, is_dark: bool, state: &mut SettingsState, db_path: &str) {
     page_header(ui, "*", i18n::t("system", lang), "", is_dark);
 
     // Backup section
@@ -101,6 +102,15 @@ pub fn show(ui: &mut egui::Ui, lang: Lang, is_dark: bool, state: &mut SettingsSt
                         ui.label(egui::RichText::new(date).size(12.0).color(text_color(is_dark)).monospace());
                         ui.add_space(8.0);
                         ui.colored_label(text_dim_c(is_dark), egui::RichText::new(size).size(11.0).monospace());
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let path = entry.path().to_string_lossy().to_string();
+                            if btn(ui, egui::RichText::new("Import").size(10.0)).clicked() {
+                                match import::import_products(conn, &path) {
+                                    Ok(n) => { state.feedback = Some(format!("Imported {} products", n)); state.feedback_is_error = false; }
+                                    Err(e) => { state.feedback = Some(e); state.feedback_is_error = true; }
+                                }
+                            }
+                        });
                     });
                 }
                 if backup_files.len() > 10 {

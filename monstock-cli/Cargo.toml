@@ -1,0 +1,16 @@
+[package]
+name = "monstock-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "seed"
+path = "src/bin/seed.rs"
+
+[dependencies]
+monstock-core = { path = "../monstock-core" }
+monstock-backup = { path = "../monstock-backup" }
+monstock-import = { path = "../monstock-import" }
+diesel = { workspace = true, features = ["sqlite"] }
+chrono = { workspace = true }
+dirs = "6.0"

@@ -13,6 +13,18 @@ pub struct ExpensesState {
     pub form_amount: String,
     pub form_error: Option<String>,
     pub pagination: PaginationState,
+    pub sort: SortState,
+}
+
+fn sort_expenses(items: &mut [monstock_core::models::Expense], sort: &SortState) {
+    let asc = sort.ascending;
+    match sort.column {
+        Some(0) => items.sort_by(|a, b| compare_str(&a.date, &b.date, asc)),
+        Some(1) => items.sort_by(|a, b| compare_str(&a.category, &b.category, asc)),
+        Some(2) => items.sort_by(|a, b| compare_str(a.description.as_deref().unwrap_or(""), b.description.as_deref().unwrap_or(""), asc)),
+        Some(3) => items.sort_by(|a, b| compare_float(a.amount, b.amount, asc)),
+        _ => {}
+    }
 }
 
 impl Default for ExpensesState {
@@ -28,7 +40,17 @@ impl Default for ExpensesState {
             form_amount: String::new(),
             form_error: None,
             pagination: Default::default(),
+            sort: Default::default(),
         }
+    }
+}
+
+impl components::ModalScreen for ExpensesState {
+    fn save(&mut self, lang: Lang, conn: &mut diesel::SqliteConnection) -> bool {
+        self.save(lang, conn)
+    }
+    fn close_modal(&mut self) {
+        self.close_modal();
     }
 }
 
@@ -42,8 +64,8 @@ impl ExpensesState {
 
     fn close_modal(&mut self) { self.show_modal = false; }
 
-    fn save(&mut self, conn: &mut diesel::SqliteConnection) -> bool {
-        let amount: f64 = match self.form_amount.parse() { Ok(v) if v >= 0.0 => v, _ => { self.form_error = Some("Invalid amount".to_string()); return false } };
+    fn save(&mut self, lang: Lang, conn: &mut diesel::SqliteConnection) -> bool {
+        let amount: f64 = match self.form_amount.parse() { Ok(v) if v >= 0.0 => v, _ => { self.form_error = Some(i18n::t("invalid_amount", lang).to_string()); return false } };
         let expense = monstock_core::models::NewExpense {
             date: self.form_date.clone(),
             category: self.form_category.clone(),
@@ -85,20 +107,23 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
     ui.add_space(8.0);
     card(ui, is_dark, |ui| {
         state.pagination.total = monstock_core::services::expense_service::count_by_date_range(conn, &state.filter_start, &state.filter_end).unwrap_or(0);
-        let (expenses, error) = match monstock_core::services::expense_service::find_paginated(conn, &state.filter_start, &state.filter_end, state.pagination.page, state.pagination.per_page) {
+        let (mut expenses, error) = match monstock_core::services::expense_service::find_paginated(conn, &state.filter_start, &state.filter_end, state.pagination.page, state.pagination.per_page) {
             Ok(list) => (list, None),
             Err(e) => (vec![], Some(format!("{}: {}", i18n::t("error", lang), e))),
         };
+        let mut s = state.sort.clone();
+        sort_expenses(&mut expenses, &s);
         components::data_table(ui, "expenses_grid", &[
             i18n::t("date", lang), i18n::t("category", lang), i18n::t("notes", lang),
             i18n::t("amount", lang), "",
-        ], &expenses, error.as_deref(), |ui, e| {
+        ], &expenses, error.as_deref(), Some(&mut s), |ui, e| {
             mono_value(ui, &e.date, TEXT_SEC);
             tag(ui, &e.category, ACCENT, is_dark);
             ui.label(egui::RichText::new(e.description.as_deref().unwrap_or("-")).size(13.0).color(TEXT_SEC));
             amount_text(ui, &format!("{:.0} DA", e.amount), BAD);
             if components::delete_btn(ui, is_dark).clicked() { state.delete(conn, e.id); }
         });
+        state.sort = s;
         pagination_ui(ui, &mut state.pagination, is_dark);
     });
 
@@ -116,7 +141,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new(i18n::t("category", lang)).size(13.0).color(text_color(is_dark)).strong());
                 ui.add_space(8.0);
-                let categories = monstock_core::repos::expense_category_repo::find_all_categories(conn).unwrap_or_default();
+                let categories = monstock_core::services::expense_category_service::find_all(conn).unwrap_or_default();
                 egui::ComboBox::from_id_salt("expense_category").selected_text(&state.form_category).width(200.0).show_ui(ui, |ui| {
                     for c in &categories { ui.selectable_value(&mut state.form_category, c.name.clone(), &c.name); }
                 });
@@ -134,10 +159,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
                 ui.add(egui::TextEdit::singleline(&mut state.form_amount).desired_width(100.0));
                 ui.label(" DA");
             });
-            components::modal_actions(ui, lang, err.as_deref(), |is_save| {
-                if is_save { state.save(conn); }
-                else { state.close_modal(); }
-            });
+            components::modal_actions(ui, lang, err.as_deref(), conn, state);
         });
     }
 }

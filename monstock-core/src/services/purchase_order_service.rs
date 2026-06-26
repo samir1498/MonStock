@@ -1,8 +1,8 @@
 use diesel::prelude::*;
 use diesel::SqliteConnection;
 use crate::models::*;
-use crate::schema::purchase_orders;
 use crate::repos::purchase_order_repo;
+use crate::services::supplier_service;
 
 #[derive(Debug, Clone)]
 pub struct PurchaseOrderInput {
@@ -30,16 +30,16 @@ pub fn create_purchase_order(
     items: &[PurchaseOrderItemInput],
 ) -> QueryResult<PurchaseOrderResult> {
     conn.transaction::<PurchaseOrderResult, diesel::result::Error, _>(|conn| {
-        let order = diesel::insert_into(purchase_orders::table)
-            .values(&NewPurchaseOrder {
+        let order = purchase_order_repo::insert_purchase_order(
+            conn,
+            &NewPurchaseOrder {
                 purchase_order_number: po.purchase_order_number.clone(),
                 supplier_id: po.supplier_id,
                 status: "Draft".to_string(),
                 notes: po.notes.clone(),
                 total: 0.0,
-            })
-            .returning(PurchaseOrder::as_returning())
-            .get_result(conn)?;
+            },
+        )?;
 
         let new_items: Vec<NewPurchaseOrderItem> = items
             .iter()
@@ -56,14 +56,10 @@ pub fn create_purchase_order(
 
         let computed_total: f64 = result_items.iter().map(|i| i.line_total).sum();
 
-        diesel::update(purchase_orders::table.find(order.id))
-            .set(purchase_orders::total.eq(computed_total))
-            .execute(conn)?;
+        purchase_order_repo::update_purchase_order_total(conn, order.id, computed_total)?;
 
-        let updated_order = purchase_orders::table
-            .find(order.id)
-            .select(PurchaseOrder::as_select())
-            .first(conn)?;
+        let updated_order = purchase_order_repo::find_purchase_order_by_id(conn, order.id)?
+            .expect("order should exist after insert");
 
         Ok(PurchaseOrderResult {
             order: updated_order,
@@ -77,12 +73,6 @@ pub fn receive_purchase_order(
     purchase_order_id: i32,
 ) -> QueryResult<()> {
     purchase_order_repo::receive_purchase_order(conn, purchase_order_id)
-}
-
-pub fn find_all(
-    conn: &mut SqliteConnection,
-) -> QueryResult<Vec<PurchaseOrder>> {
-    purchase_order_repo::find_all_purchase_orders(conn)
 }
 
 pub fn find_paginated(
@@ -99,23 +89,17 @@ pub fn count_all(
     purchase_order_repo::count_purchase_orders(conn)
 }
 
-pub fn find_by_id(
-    conn: &mut SqliteConnection,
-    purchase_order_id: i32,
-) -> QueryResult<Option<PurchaseOrder>> {
-    purchase_order_repo::find_purchase_order_by_id(conn, purchase_order_id)
-}
-
-pub fn find_items(
-    conn: &mut SqliteConnection,
-    purchase_order_id: i32,
-) -> QueryResult<Vec<PurchaseOrderItem>> {
-    purchase_order_repo::find_items_by_purchase_order(conn, purchase_order_id)
-}
-
 pub fn delete(
     conn: &mut SqliteConnection,
     purchase_order_id: i32,
 ) -> QueryResult<bool> {
     purchase_order_repo::delete_purchase_order(conn, purchase_order_id)
+}
+
+pub fn supplier_name(
+    conn: &mut SqliteConnection,
+    supplier_id: Option<i32>,
+) -> Option<String> {
+    let id = supplier_id?;
+    supplier_service::find_by_id(conn, id).ok()?.map(|s| s.name)
 }

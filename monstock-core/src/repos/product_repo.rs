@@ -65,15 +65,16 @@ pub fn update_product(conn: &mut SqliteConnection, product_id: i32, p: &NewProdu
         .map(|_| ())
 }
 
-pub fn set_product_cost_price(conn: &mut SqliteConnection, product_id: i32, cost_price: f64) -> QueryResult<()> {
-    diesel::update(products::table.find(product_id))
-        .set(products::cost_price.eq(cost_price))
-        .execute(conn)
-        .map(|_| ())
-}
-
 pub fn delete_product(conn: &mut SqliteConnection, product_id: i32) -> QueryResult<bool> {
     let rows = diesel::delete(products::table.find(product_id))
         .execute(conn)?;
     Ok(rows > 0)
+}
+
+pub fn find_low_stock_products(conn: &mut SqliteConnection, threshold: i32) -> QueryResult<Vec<Product>> {
+    products::table
+        .filter(products::quantity_on_hand.le(threshold))
+        .order(products::quantity_on_hand.asc())
+        .select(Product::as_select())
+        .load(conn)
 }

@@ -1,32 +1,5 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum PurchaseOrderStatus {
-    Draft,
-    Received,
-}
-
-impl std::fmt::Display for PurchaseOrderStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            PurchaseOrderStatus::Draft => write!(f, "Draft"),
-            PurchaseOrderStatus::Received => write!(f, "Received"),
-        }
-    }
-}
-
-impl FromStr for PurchaseOrderStatus {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "draft" => Ok(PurchaseOrderStatus::Draft),
-            "received" => Ok(PurchaseOrderStatus::Received),
-            _ => Err(()),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Identifiable, Selectable)]
 #[diesel(table_name = crate::schema::purchase_orders)]

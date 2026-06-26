@@ -2,6 +2,7 @@ use egui;
 use crate::i18n::{self, Lang};
 use crate::style::*;
 use crate::components;
+use crate::barcode_scanner;
 
 pub struct SalesState {
     pub show_sale_modal: bool,
@@ -9,6 +10,18 @@ pub struct SalesState {
     pub form_items: Vec<SaleItemForm>,
     pub form_error: Option<String>,
     pub pagination: PaginationState,
+    pub sort: SortState,
+    pub barcode_input: barcode_scanner::BarcodeInput,
+}
+
+fn sort_transactions(items: &mut [monstock_core::models::Transaction], sort: &SortState) {
+    let asc = sort.ascending;
+    match sort.column {
+        Some(0) => items.sort_by(|a, b| compare_int(a.id, b.id, asc)),
+        Some(1) => items.sort_by(|a, b| compare_str(&a.timestamp, &b.timestamp, asc)),
+        Some(2) => items.sort_by(|a, b| compare_float(a.total, b.total, asc)),
+        _ => {}
+    }
 }
 
 pub(crate) struct SaleItemForm {
@@ -26,7 +39,18 @@ impl Default for SalesState {
             form_items: Vec::new(),
             form_error: None,
             pagination: Default::default(),
+            sort: Default::default(),
+            barcode_input: Default::default(),
         }
+    }
+}
+
+impl components::ModalScreen for SalesState {
+    fn save(&mut self, lang: Lang, conn: &mut diesel::SqliteConnection) -> bool {
+        self.save(lang, conn)
+    }
+    fn close_modal(&mut self) {
+        self.close_modal();
     }
 }
 
@@ -45,8 +69,8 @@ impl SalesState {
 
     fn remove_item(&mut self, index: usize) { self.form_items.remove(index); }
 
-    fn save(&mut self, conn: &mut diesel::SqliteConnection) -> bool {
-        if self.form_items.is_empty() { self.form_error = Some("At least one item is required".to_string()); return false; }
+    fn save(&mut self, lang: Lang, conn: &mut diesel::SqliteConnection) -> bool {
+        if self.form_items.is_empty() { self.form_error = Some(i18n::t("min_one_item", lang).to_string()); return false; }
 
         let mut items = Vec::new();
         for item in &self.form_items {
@@ -92,23 +116,39 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
     ui.add_space(8.0);
     card(ui, is_dark, |ui| {
         state.pagination.total = monstock_core::services::sale_service::count_transactions_by_date(conn, &state.filter_date).unwrap_or(0);
-        let (transactions, error) = match monstock_core::services::sale_service::find_transactions_paginated(conn, &state.filter_date, state.pagination.page, state.pagination.per_page) {
+        let (mut transactions, error) = match monstock_core::services::sale_service::find_transactions_paginated(conn, &state.filter_date, state.pagination.page, state.pagination.per_page) {
             Ok(list) => (list, None),
             Err(e) => (vec![], Some(format!("{}: {}", i18n::t("error", lang), e))),
         };
+        let mut s = state.sort.clone();
+        sort_transactions(&mut transactions, &s);
         components::data_table(ui, "sales_grid", &["ID", i18n::t("date", lang), i18n::t("total", lang)],
-            &transactions, error.as_deref(), |ui, tx| {
+            &transactions, error.as_deref(), Some(&mut s), |ui, tx|
+        {
             mono_value(ui, &format!("{}", tx.id), TEXT);
             mono_value(ui, &tx.timestamp, TEXT_SEC);
             amount_text(ui, &format!("{:.0} DA", tx.total), TEXT);
         });
+        state.sort = s;
         pagination_ui(ui, &mut state.pagination, is_dark);
     });
 
     if state.show_sale_modal {
         let title = format!("{} {}", i18n::t("add", lang), i18n::t("sales", lang));
-        components::modal_window(ui.ctx(), &title, [500.0, 450.0], |ui| {
+        components::modal_window(ui.ctx(), &title, [500.0, 500.0], |ui| {
             ui.add_space(8.0);
+
+            barcode_scanner::scan_ui(ui, &mut state.barcode_input, is_dark);
+            if state.barcode_input.take_scan().is_some() {
+                if let Ok(Some(p)) = monstock_core::services::product_service::find_by_barcode(conn, state.barcode_input.value.trim()) {
+                    state.add_item(p.id, &p.name, p.selling_price, p.cost_price);
+                    state.barcode_input.value.clear();
+                } else {
+                    state.form_error = Some(format!("Product not found: {}", state.barcode_input.value));
+                }
+            }
+            ui.add_space(8.0);
+
             ui.label(egui::RichText::new(i18n::t("available_products", lang)).size(14.0).color(text_color(is_dark)).strong());
             ui.add_space(4.0);
 
@@ -158,10 +198,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             });
 
             let err = state.form_error.clone();
-            components::modal_actions(ui, lang, err.as_deref(), |is_save| {
-                if is_save { state.save(conn); }
-                else { state.close_modal(); }
-            });
+            components::modal_actions(ui, lang, err.as_deref(), conn, state);
         });
     }
 }

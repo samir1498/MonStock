@@ -140,3 +140,10 @@ pub fn transaction_count_by_date(
         .select(count(transactions::id))
         .first::<i64>(conn)
 }
+
+pub fn update_transaction_total(conn: &mut SqliteConnection, transaction_id: i32, total: f64) -> QueryResult<()> {
+    diesel::update(transactions::table.find(transaction_id))
+        .set(transactions::total.eq(total))
+        .execute(conn)
+        .map(|_| ())
+}

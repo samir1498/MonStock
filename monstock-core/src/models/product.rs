@@ -21,6 +21,7 @@ pub struct NewProduct {
     pub barcode: Option<String>,
     pub cost_price: f64,
     pub selling_price: f64,
+    pub quantity_on_hand: i32,
 }
 
 impl Product {

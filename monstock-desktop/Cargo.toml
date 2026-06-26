@@ -6,6 +6,8 @@ default-run = "monstock-desktop"
 
 [dependencies]
 monstock-core = { path = "../monstock-core" }
+monstock-backup = { path = "../monstock-backup" }
+monstock-import = { path = "../monstock-import" }
 diesel = { version = "2.2.0", features = ["sqlite"] }
 eframe = "0.34.3"
 egui = "0.34.3"

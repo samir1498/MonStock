@@ -1,7 +1,6 @@
 use diesel::prelude::*;
 use diesel::SqliteConnection;
 use crate::models::*;
-use crate::schema::{transactions, transaction_items, products};
 use crate::repos::transaction_repo;
 
 #[derive(Debug, Clone)]
@@ -25,63 +24,37 @@ pub fn record_sale(
     items: &[SaleItemInput],
 ) -> QueryResult<SaleResult> {
     conn.transaction::<SaleResult, diesel::result::Error, _>(|conn| {
-        let tx = diesel::insert_into(transactions::table)
-            .values(&NewTransaction {
+        let tx = transaction_repo::insert_transaction(
+            conn,
+            &NewTransaction {
                 timestamp: timestamp.to_string(),
                 total: 0.0,
+            },
+        )?;
+
+        let new_items: Vec<NewTransactionItem> = items
+            .iter()
+            .map(|item| NewTransactionItem {
+                transaction_id: tx.id,
+                product_id: item.product_id,
+                product_name: item.product_name.clone(),
+                quantity: item.quantity,
+                selling_price: item.selling_price,
+                cost_price: item.cost_price,
+                line_total: 0.0,
             })
-            .returning(Transaction::as_returning())
-            .get_result(conn)?;
+            .collect();
 
-        let mut result_items = Vec::with_capacity(items.len());
-        let mut computed_total = 0.0;
+        let result_items = transaction_repo::insert_transaction_items(conn, &new_items)?;
+        let computed_total: f64 = result_items.iter().map(|i| i.line_total).sum();
 
-        for item in items {
-            let line_total = item.quantity as f64 * item.selling_price;
-            computed_total += line_total;
-
-            let current_stock = products::table
-                .find(item.product_id)
-                .select(products::quantity_on_hand)
-                .first::<i32>(conn)
-                .optional()?
-                .unwrap_or(0);
-
-            if current_stock < item.quantity {
-                return Err(diesel::result::Error::RollbackTransaction);
-            }
-
-            diesel::update(products::table.find(item.product_id))
-                .set(products::quantity_on_hand.eq(products::quantity_on_hand - item.quantity))
-                .execute(conn)?;
-
-            let ti = diesel::insert_into(transaction_items::table)
-                .values((
-                    transaction_items::transaction_id.eq(tx.id),
-                    transaction_items::product_id.eq(item.product_id),
-                    transaction_items::product_name.eq(&item.product_name),
-                    transaction_items::quantity.eq(item.quantity),
-                    transaction_items::selling_price.eq(item.selling_price),
-                    transaction_items::cost_price.eq(item.cost_price),
-                    transaction_items::line_total.eq(line_total),
-                ))
-                .returning(TransactionItem::as_returning())
-                .get_result(conn)?;
-
-            result_items.push(ti);
-        }
-
-        diesel::update(transactions::table.find(tx.id))
-            .set(transactions::total.eq(computed_total))
-            .execute(conn)?;
-
-        let updated_tx = transactions::table
-            .find(tx.id)
-            .select(Transaction::as_select())
-            .first(conn)?;
+        transaction_repo::update_transaction_total(conn, tx.id, computed_total)?;
 
         Ok(SaleResult {
-            transaction: updated_tx,
+            transaction: Transaction {
+                total: computed_total,
+                ..tx
+            },
             items: result_items,
         })
     })

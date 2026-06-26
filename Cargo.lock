@@ -2215,6 +2215,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "monstock-backup"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "dirs",
+]
+
+[[package]]
+name = "monstock-cli"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "diesel",
+ "dirs",
+ "monstock-backup",
+ "monstock-core",
+ "monstock-import",
+]
+
+[[package]]
 name = "monstock-core"
 version = "0.1.0"
 dependencies = [
@@ -2239,6 +2259,16 @@ dependencies = [
  "egui",
  "egui_extras",
  "env_logger",
+ "monstock-backup",
+ "monstock-core",
+ "monstock-import",
+]
+
+[[package]]
+name = "monstock-import"
+version = "0.1.0"
+dependencies = [
+ "diesel",
  "monstock-core",
 ]
 
