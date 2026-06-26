@@ -1,4 +1,3 @@
-use std::io::Write;
 use monstock_core::models::*;
 use monstock_core::db;
 use diesel::prelude::*;
@@ -121,17 +120,15 @@ fn seed_sales(conn: &mut SqliteConnection, product_ids: &[i32], days_back: i64) 
             Ok(d) => d.format("%u").to_string().parse::<u32>().unwrap_or(7) < 6,
             Err(_) => true,
         };
-        let n = if is_weekday { random_range(30, 70) } else { random_range(15, 35) };
-        for _ in 0..n {
-            let hours = random_range(8, 21);
+        for hour in 8..22 {
             let minutes = random_range(0, 59);
-            let timestamp = format!("{}T{:02}:{:02}:00", date, hours, minutes);
+            let timestamp = format!("{}T{:02}:{:02}:00", date, hour, minutes);
             let items_count = random_range(1, 5);
             let mut inputs = Vec::new();
             for _ in 0..items_count {
                 let pid = product_ids[(rand_small().unsigned_abs() as usize) % product_ids.len()];
                 if let Ok(Some(product)) = product_service::find_by_id(conn, pid) {
-                    let qty = random_range(1, 5);
+                    let qty = if is_weekday { random_range(1, 5) } else { random_range(1, 3) };
                     inputs.push(sale_service::SaleItemInput {
                         product_id: pid,
                         product_name: product.name,
@@ -184,17 +181,10 @@ fn main() {
     let db_path_shm = format!("{}-shm", db_path);
     let db_path_wal = format!("{}-wal", db_path);
     if std::path::Path::new(&db_path).exists() {
-        print!("Database exists. Delete and recreate? (y/N): ");
-        std::io::stdout().flush().ok();
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).ok();
-        if input.trim().to_lowercase() != "y" {
-            println!("Aborting.");
-            return;
-        }
         std::fs::remove_file(&db_path).ok();
         std::fs::remove_file(&db_path_shm).ok();
         std::fs::remove_file(&db_path_wal).ok();
+        println!("Removed existing database.");
     }
 
     if let Some(parent) = std::path::Path::new(&db_path).parent() {
@@ -212,18 +202,17 @@ fn main() {
     let supplier_ids = seed_suppliers(conn);
     println!("  {} suppliers created", supplier_ids.len());
 
-    println!("Seeding 90 days of expenses...");
-    seed_expenses(conn, 90);
+    println!("Seeding 30 days of expenses...");
+    seed_expenses(conn, 30);
     println!("  expenses created");
 
-    println!("Seeding 90 days of sales...");
-    seed_sales(conn, &product_ids, 90);
+    println!("Seeding 30 days of sales (every hour)...");
+    seed_sales(conn, &product_ids, 30);
     println!("  sales created");
 
-    println!("Seeding 90 days of purchase orders...");
-    seed_purchase_orders(conn, &supplier_ids, 90);
+    println!("Seeding 30 days of purchase orders...");
+    seed_purchase_orders(conn, &supplier_ids, 30);
     println!("  purchase orders created");
 
     println!("Done! Database seeded with realistic test data.");
-    println!("Run with: cargo run --bin seed");
 }
