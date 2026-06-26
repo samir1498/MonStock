@@ -1,35 +1,28 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.2.0 — architecture cleanup
 
 ### Features
-- Purchase Orders (bons d'achat) with Draft/Received status
-- Stock tracking — auto-increment on PO receive, decrement on sale
-- Product management with barcodes, cost/selling price, margin
-- Expenses with categories and date range filtering
-- Daily dashboard with stats cards, sales chart, activity feed
-- Dashboard low-stock alert with paginated card grid
-- Sales recording with transaction history
-- Pagination across all list screens
-- i18n (English / French) with global toggle
-- Dark/light theme toggle
-- Backup auto-creation + manual backup with backup history
-- Barcode scanner support (USB keyboard-emulation scanners)
-- Bar chart (sales by hour) via custom egui drawing
+- Clickable sort headers (▲ ▼) on all 4 data screens
+- Barcode scanner wired to sales screen (scan → auto-add product)
+- Import products from backup files via Settings
+- Filtering & sorting state per screen
 
 ### Refactors
-- Architecture audit: service layer depth, DRY, N+1 queries
-- UI component extraction: data_table, modal_window, modal_actions, delete_btn
-- Consistent table styling across all screens
-- Centered stat cards with fixed heights (no layout shift)
-- Settings screen with backup actions (no command-line hints)
+- Service layer: created `supplier_service`, `expense_category_service` — zero repo bypasses from desktop
+- Fixed 3 services using inline diesel instead of repos (`purchase_order_service`, `sale_service`, `dashboard_service`)
+- Removed 5 unused functions
+- `ModalScreen` trait eliminates 4 identical save/cancel closures
+- Extracted `monstock-backup`, `monstock-import`, `monstock-cli` crates
+- `quantity_on_hand` field added to `NewProduct` (removes seed's raw diesel hack)
+- DB path moved to `dirs::data_dir()` (no more CWD-relative)
+- Validation errors now i18n-aware (`lang` param in all save methods)
+- Horizontal scroll on DataTable + full bidirectional scroll on main panel
 
 ### Bugfixes
-- update_product now correctly persists cost_price
-- 11 Clippy warnings fixed (redundant imports, needless lifetimes, etc.)
-- Navigation ID collision fix
+- Purged `inventory_desktop.html` from git history
+- DB path fix: `~/.local/share/monstock/monstock.db` (Linux)
 
 ### Tech
-- Rust + egui 0.34 + Diesel + SQLite
-- Workspace split: monstock-core (lib) / monstock-desktop (binary)
-- 27 integration tests
+- 5 workspace crates: `monstock-core`, `monstock-desktop`, `monstock-backup`, `monstock-import`, `monstock-cli`
+- 26 integration tests
