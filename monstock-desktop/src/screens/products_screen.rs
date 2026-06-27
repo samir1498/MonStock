@@ -121,7 +121,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             ColumnDef::new(i18n::t("barcode", lang), ColumnSizing::Auto),
             ColumnDef::new(i18n::t("cost_price", lang), ColumnSizing::Exact(80.0)),
             ColumnDef::new(i18n::t("selling_price", lang), ColumnSizing::Exact(80.0)),
-            ColumnDef::new(i18n::t("stock", lang), ColumnSizing::Remainder),
+            ColumnDef::new(i18n::t("stock", lang), ColumnSizing::Remainder).resizable(true),
             ColumnDef::new(i18n::t("margin", lang), ColumnSizing::Exact(100.0)),
             ColumnDef::new("", ColumnSizing::Auto),
         ], &products)

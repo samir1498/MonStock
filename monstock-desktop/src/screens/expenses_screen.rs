@@ -115,8 +115,8 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
         sort_expenses(&mut expenses, &s);
         DataTable::new(vec![
             ColumnDef::new(i18n::t("date", lang), ColumnSizing::Exact(100.0)),
-            ColumnDef::new(i18n::t("category", lang), ColumnSizing::Remainder),
-            ColumnDef::new(i18n::t("notes", lang), ColumnSizing::Remainder),
+            ColumnDef::new(i18n::t("category", lang), ColumnSizing::Remainder).resizable(true),
+            ColumnDef::new(i18n::t("notes", lang), ColumnSizing::Remainder).resizable(true),
             ColumnDef::new(i18n::t("amount", lang), ColumnSizing::Exact(100.0)),
             ColumnDef::new("", ColumnSizing::Auto),
         ], &expenses)

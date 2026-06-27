@@ -146,7 +146,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
         sort_purchase_orders(&mut orders, &s);
         DataTable::new(vec![
             ColumnDef::new(i18n::t("name", lang), ColumnSizing::Auto),
-            ColumnDef::new(i18n::t("supplier", lang), ColumnSizing::Remainder),
+            ColumnDef::new(i18n::t("supplier", lang), ColumnSizing::Remainder).resizable(true),
             ColumnDef::new(i18n::t("total", lang), ColumnSizing::Exact(100.0)),
             ColumnDef::new(i18n::t("status", lang), ColumnSizing::Exact(100.0)),
             ColumnDef::new(i18n::t("date", lang), ColumnSizing::Exact(120.0)),
