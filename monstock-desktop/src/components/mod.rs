@@ -1,47 +1,14 @@
+pub mod data_table;
+
 use crate::i18n::{self, Lang};
 use crate::style::*;
 use diesel::SqliteConnection;
 
+pub use data_table::{ColumnDef, ColumnSizing, DataTable};
+
 pub trait ModalScreen {
     fn save(&mut self, lang: Lang, conn: &mut SqliteConnection) -> bool;
     fn close_modal(&mut self);
-}
-
-/// Renders a table with headers, rows, and error handling.
-pub fn data_table<T, F>(
-    ui: &mut egui::Ui,
-    id: &str,
-    headers: &[&str],
-    items: &[T],
-    error: Option<&str>,
-    mut sort: Option<&mut SortState>,
-    mut render_row: F,
-)
-where
-    F: FnMut(&mut egui::Ui, &T),
-{
-    if let Some(err) = error {
-        ui.colored_label(BAD, format!("{}: {}", "Error", err));
-        return;
-    }
-
-    egui::ScrollArea::horizontal().id_salt(format!("{}_scroll", id)).show(ui, |ui| {
-        egui::Grid::new(id).striped(true).min_col_width(60.0).show(ui, |ui| {
-            for (i, h) in headers.iter().enumerate() {
-                if let Some(ref mut s) = sort {
-                    sortable_header(ui, h, i, s);
-                } else {
-                    table_header(ui, h);
-                }
-            }
-            ui.end_row();
-
-            for item in items {
-                render_row(ui, item);
-                ui.end_row();
-            }
-        });
-    });
 }
 
 /// Renders a modal window with standard boilerplate.
@@ -61,7 +28,11 @@ where
         .title_bar(true)
         .resizable(false)
         .movable(false)
-        .show(ctx, add_contents);
+        .show(ctx, |ui| {
+            egui::Frame::new()
+                .inner_margin(egui::Margin::symmetric(20, 16))
+                .show(ui, add_contents);
+        });
 }
 
 /// Renders save/cancel buttons + error text for modal forms.

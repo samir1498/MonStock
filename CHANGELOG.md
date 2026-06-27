@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.0 — egui_extras::Table migration (full-width DataTable)
+
+### Features
+- Replaced `egui::Grid` DataTable with `egui_extras::Table` — columns now fill available width
+- `ColumnDef` + `ColumnSizing` system: `Auto`, `Exact(f32)`, `Remainder` (flex)
+- Remaining-space columns stretch to fill window on resize
+- Fixed header row stays visible while body scrolls
+- Column resizing ready (`.resizable(true)` on any `ColumnDef`)
+- Sortable headers preserved (clickable ▲/▼) with migrated sort state
+- `monstock-tauri` workspace member added (Tauri v2 scaffolding)
+
+### Tech
+- New `components/data_table.rs` module — `DataTable` builder struct
+- Removed old `components::data_table()` function
+- Removed dead `sortable_header()` from `style.rs`
+- Added `serde`/`serde_json` workspace deps for Tauri IPC
+
 ## 0.2.1 — fix DataTable column alignment
 
 ### Bugfixes

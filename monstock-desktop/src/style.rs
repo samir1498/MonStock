@@ -87,6 +87,19 @@ pub fn page_header(ui: &mut egui::Ui, icon: &str, title: &str, subtitle: &str, i
     ui.add_space(16.0);
 }
 
+pub fn form_field(ui: &mut egui::Ui, label: &str, is_dark: bool, add_input: impl FnOnce(&mut egui::Ui)) {
+    ui.horizontal(|ui| {
+        ui.add_sized(egui::vec2(120.0, 0.0), egui::Label::new(
+            egui::RichText::new(label).size(13.0).color(text_color(is_dark)).strong()
+        ));
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            ui.set_min_width(ui.available_width());
+            add_input(ui);
+        });
+    });
+}
+
 pub fn primary_btn(ui: &mut egui::Ui, label: &str) -> egui::Response {
     let r = ui.add(egui::Button::new(egui::RichText::new(label).color(BG).size(12.0))
         .fill(TEXT).corner_radius(6).min_size(egui::vec2(80.0, 28.0)));
@@ -139,33 +152,6 @@ pub fn compare_int(a: i32, b: i32, asc: bool) -> std::cmp::Ordering {
 
 pub fn table_header(ui: &mut egui::Ui, label: &str) {
     ui.colored_label(TEXT_SEC, egui::RichText::new(label).size(12.5).strong());
-}
-
-pub fn sortable_header(ui: &mut egui::Ui, label: &str, idx: usize, sort: &mut SortState) -> bool {
-    let is_active = sort.column == Some(idx);
-    let arrow = if is_active {
-        if sort.ascending { " ▲" } else { " ▼" }
-    } else {
-        ""
-    };
-    let text = format!("{}{}", label, arrow);
-    let color = if is_active { TEXT } else { TEXT_SEC };
-    let r = ui.add(egui::Label::new(
-        egui::RichText::new(text).size(12.5).color(color).strong()
-    ).sense(egui::Sense::click()));
-    if r.hovered() {
-        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-    }
-    if r.clicked() {
-        if sort.column == Some(idx) {
-            sort.ascending = !sort.ascending;
-        } else {
-            sort.column = Some(idx);
-            sort.ascending = true;
-        }
-        return true;
-    }
-    false
 }
 
 pub fn mono_value(ui: &mut egui::Ui, value: &str, color: egui::Color32) {

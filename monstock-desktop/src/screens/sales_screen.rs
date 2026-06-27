@@ -1,7 +1,7 @@
 use egui;
 use crate::i18n::{self, Lang};
 use crate::style::*;
-use crate::components;
+use crate::components::{self, ColumnDef, ColumnSizing, DataTable};
 use crate::barcode_scanner;
 
 pub struct SalesState {
@@ -122,38 +122,44 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
         };
         let mut s = state.sort.clone();
         sort_transactions(&mut transactions, &s);
-        components::data_table(ui, "sales_grid", &["ID", i18n::t("date", lang), i18n::t("total", lang)],
-            &transactions, error.as_deref(), Some(&mut s), |ui, tx|
-        {
-            mono_value(ui, &format!("{}", tx.id), TEXT);
-            mono_value(ui, &tx.timestamp, TEXT_SEC);
-            amount_text(ui, &format!("{:.0} DA", tx.total), TEXT);
-        });
+        DataTable::new(vec![
+            ColumnDef::new("ID", ColumnSizing::Exact(60.0)),
+            ColumnDef::new(i18n::t("date", lang), ColumnSizing::Remainder),
+            ColumnDef::new(i18n::t("total", lang), ColumnSizing::Exact(100.0)),
+        ], &transactions)
+            .error(error.as_deref())
+            .row_height(32.0)
+            .show(ui, Some(&mut s), |row, tx| {
+                row.col(|ui| mono_value(ui, &format!("{}", tx.id), TEXT));
+                row.col(|ui| mono_value(ui, &tx.timestamp, TEXT_SEC));
+                row.col(|ui| amount_text(ui, &format!("{:.0} DA", tx.total), TEXT));
+            });
         state.sort = s;
         pagination_ui(ui, &mut state.pagination, is_dark);
     });
 
     if state.show_sale_modal {
         let title = format!("{} {}", i18n::t("add", lang), i18n::t("sales", lang));
-        components::modal_window(ui.ctx(), &title, [500.0, 500.0], |ui| {
-            ui.add_space(8.0);
-
-            barcode_scanner::scan_ui(ui, &mut state.barcode_input, is_dark);
-            if state.barcode_input.take_scan().is_some() {
-                if let Ok(Some(p)) = monstock_core::services::product_service::find_by_barcode(conn, state.barcode_input.value.trim()) {
-                    state.add_item(p.id, &p.name, p.selling_price, p.cost_price);
-                    state.barcode_input.value.clear();
-                } else {
-                    state.form_error = Some(format!("Product not found: {}", state.barcode_input.value));
+        components::modal_window(ui.ctx(), &title, [500.0, 560.0], |ui| {
+            card(ui, is_dark, |ui| {
+                ui.set_min_width(ui.available_width());
+                barcode_scanner::scan_ui(ui, &mut state.barcode_input);
+                if state.barcode_input.take_scan().is_some() {
+                    if let Ok(Some(p)) = monstock_core::services::product_service::find_by_barcode(conn, state.barcode_input.value.trim()) {
+                        state.add_item(p.id, &p.name, p.selling_price, p.cost_price);
+                        state.barcode_input.value.clear();
+                    } else {
+                        state.form_error = Some(format!("Product not found: {}", state.barcode_input.value));
+                    }
                 }
-            }
-            ui.add_space(8.0);
+            });
+            ui.add_space(12.0);
 
             ui.label(egui::RichText::new(i18n::t("available_products", lang)).size(14.0).color(text_color(is_dark)).strong());
             ui.add_space(4.0);
 
             let products = monstock_core::services::product_service::find_all(conn).unwrap_or_default();
-            egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
+            egui::ScrollArea::vertical().id_salt("product_picker").max_height(120.0).show(ui, |ui| {
                 egui::Grid::new("product_picker_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
                     table_header(ui, i18n::t("product", lang));
                     table_header(ui, i18n::t("stock", lang));
@@ -177,7 +183,7 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             ui.add_space(8.0); ui.separator(); ui.add_space(4.0);
             ui.label(egui::RichText::new(i18n::t("entered_items", lang)).size(14.0).color(text_color(is_dark)).strong());
 
-            egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
+            egui::ScrollArea::vertical().id_salt("sale_items").max_height(120.0).show(ui, |ui| {
                 egui::Grid::new("sale_items_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
                     table_header(ui, i18n::t("product", lang));
                     table_header(ui, i18n::t("quantity", lang));

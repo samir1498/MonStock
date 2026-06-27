@@ -1,7 +1,7 @@
 use egui;
 use crate::i18n::{self, Lang};
 use crate::style::*;
-use crate::components;
+use crate::components::{self, ColumnDef, ColumnSizing, DataTable};
 
 pub struct ExpensesState {
     pub show_modal: bool,
@@ -113,16 +113,22 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
         };
         let mut s = state.sort.clone();
         sort_expenses(&mut expenses, &s);
-        components::data_table(ui, "expenses_grid", &[
-            i18n::t("date", lang), i18n::t("category", lang), i18n::t("notes", lang),
-            i18n::t("amount", lang), "",
-        ], &expenses, error.as_deref(), Some(&mut s), |ui, e| {
-            mono_value(ui, &e.date, TEXT_SEC);
-            tag(ui, &e.category, ACCENT, is_dark);
-            ui.label(egui::RichText::new(e.description.as_deref().unwrap_or("-")).size(13.0).color(TEXT_SEC));
-            amount_text(ui, &format!("{:.0} DA", e.amount), BAD);
-            if components::delete_btn(ui, is_dark).clicked() { state.delete(conn, e.id); }
-        });
+        DataTable::new(vec![
+            ColumnDef::new(i18n::t("date", lang), ColumnSizing::Exact(100.0)),
+            ColumnDef::new(i18n::t("category", lang), ColumnSizing::Remainder),
+            ColumnDef::new(i18n::t("notes", lang), ColumnSizing::Remainder),
+            ColumnDef::new(i18n::t("amount", lang), ColumnSizing::Exact(100.0)),
+            ColumnDef::new("", ColumnSizing::Auto),
+        ], &expenses)
+            .error(error.as_deref())
+            .row_height(36.0)
+            .show(ui, Some(&mut s), |row, e| {
+                row.col(|ui| mono_value(ui, &e.date, TEXT_SEC));
+                row.col(|ui| tag(ui, &e.category, ACCENT, is_dark));
+                row.col(|ui| { ui.label(egui::RichText::new(e.description.as_deref().unwrap_or("-")).size(13.0).color(TEXT_SEC)); });
+                row.col(|ui| amount_text(ui, &format!("{:.0} DA", e.amount), BAD));
+                row.col(|ui| { if components::delete_btn(ui, is_dark).clicked() { state.delete(conn, e.id); } });
+            });
         state.sort = s;
         pagination_ui(ui, &mut state.pagination, is_dark);
     });
@@ -131,34 +137,29 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
         let title = format!("{} {}", i18n::t("add", lang), i18n::t("expenses", lang));
         let err = state.form_error.clone();
         components::modal_window(ui.ctx(), &title, [400.0, 300.0], |ui| {
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(i18n::t("date", lang)).size(13.0).color(text_color(is_dark)).strong());
-                ui.add_space(8.0);
-                ui.add(egui::TextEdit::singleline(&mut state.form_date).desired_width(120.0));
-            });
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(i18n::t("category", lang)).size(13.0).color(text_color(is_dark)).strong());
-                ui.add_space(8.0);
-                let categories = monstock_core::services::expense_category_service::find_all(conn).unwrap_or_default();
-                egui::ComboBox::from_id_salt("expense_category").selected_text(&state.form_category).width(200.0).show_ui(ui, |ui| {
-                    for c in &categories { ui.selectable_value(&mut state.form_category, c.name.clone(), &c.name); }
+            card(ui, is_dark, |ui| {
+                ui.set_min_width(ui.available_width());
+                form_field(ui, i18n::t("date", lang), is_dark, |ui| {
+                    ui.add(egui::TextEdit::singleline(&mut state.form_date).desired_width(120.0));
+                });
+                ui.add_space(4.0);
+                form_field(ui, i18n::t("category", lang), is_dark, |ui| {
+                    let categories = monstock_core::services::expense_category_service::find_all(conn).unwrap_or_default();
+                    egui::ComboBox::from_id_salt("expense_category").selected_text(&state.form_category).width(200.0).show_ui(ui, |ui| {
+                        for c in &categories { ui.selectable_value(&mut state.form_category, c.name.clone(), &c.name); }
+                    });
+                });
+                ui.add_space(4.0);
+                form_field(ui, i18n::t("notes", lang), is_dark, |ui| {
+                    ui.add(egui::TextEdit::singleline(&mut state.form_description).desired_width(200.0).hint_text(i18n::t("notes", lang)));
+                });
+                ui.add_space(4.0);
+                form_field(ui, i18n::t("amount", lang), is_dark, |ui| {
+                    ui.add(egui::TextEdit::singleline(&mut state.form_amount).desired_width(100.0));
+                    ui.label(" DA");
                 });
             });
             ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(i18n::t("notes", lang)).size(13.0).color(text_color(is_dark)).strong());
-                ui.add_space(8.0);
-                ui.add(egui::TextEdit::singleline(&mut state.form_description).desired_width(200.0).hint_text(i18n::t("notes", lang)));
-            });
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(i18n::t("amount", lang)).size(13.0).color(text_color(is_dark)).strong());
-                ui.add_space(8.0);
-                ui.add(egui::TextEdit::singleline(&mut state.form_amount).desired_width(100.0));
-                ui.label(" DA");
-            });
             components::modal_actions(ui, lang, err.as_deref(), conn, state);
         });
     }

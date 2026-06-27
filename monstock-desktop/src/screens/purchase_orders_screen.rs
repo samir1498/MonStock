@@ -1,7 +1,7 @@
 use egui;
 use crate::i18n::{self, Lang};
 use crate::style::*;
-use crate::components;
+use crate::components::{self, ColumnDef, ColumnSizing, DataTable};
 
 fn sort_purchase_orders(items: &mut [monstock_core::models::PurchaseOrder], sort: &SortState) {
     let asc = sort.ascending;
@@ -144,28 +144,42 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
         };
         let mut s = state.sort.clone();
         sort_purchase_orders(&mut orders, &s);
-        components::data_table(ui, "po_grid", &[
-            i18n::t("name", lang), i18n::t("supplier", lang), i18n::t("total", lang),
-            i18n::t("status", lang), i18n::t("date", lang), "", "",
-        ], &orders, error.as_deref(), Some(&mut s), |ui, po| {
-            mono_value(ui, &po.purchase_order_number, TEXT);
-            let supplier_name = monstock_core::services::purchase_order_service::supplier_name(conn, po.supplier_id);
-            mono_value(ui, supplier_name.as_deref().unwrap_or("-"), TEXT_SEC);
-            amount_text(ui, &format!("{:.0}", po.total), TEXT);
-            let (sc, sl) = if po.status == "Received" { (GOOD, i18n::t("received", lang)) } else { (WARN, i18n::t("draft", lang)) };
-            tag(ui, sl, sc, is_dark);
-            ui.label(egui::RichText::new(&po.created_at).size(12.0).color(TEXT_SEC));
-            if po.status == "Draft" {
-                let r = btn_custom(ui,
-                    egui::Button::new(egui::RichText::new(i18n::t("received", lang)).size(11.0).color(TEXT))
-                        .fill(GOOD).corner_radius(4).min_size(egui::vec2(60.0, 22.0))
-                );
-                if r.clicked() { state.receive(conn, po.id); }
-            } else {
-                ui.label("");
-            }
-            if components::delete_btn(ui, is_dark).clicked() { state.delete(conn, po.id); }
-        });
+        DataTable::new(vec![
+            ColumnDef::new(i18n::t("name", lang), ColumnSizing::Auto),
+            ColumnDef::new(i18n::t("supplier", lang), ColumnSizing::Remainder),
+            ColumnDef::new(i18n::t("total", lang), ColumnSizing::Exact(100.0)),
+            ColumnDef::new(i18n::t("status", lang), ColumnSizing::Exact(100.0)),
+            ColumnDef::new(i18n::t("date", lang), ColumnSizing::Exact(120.0)),
+            ColumnDef::new("", ColumnSizing::Auto),
+            ColumnDef::new("", ColumnSizing::Auto),
+        ], &orders)
+            .error(error.as_deref())
+            .row_height(36.0)
+            .show(ui, Some(&mut s), |row, po| {
+                row.col(|ui| mono_value(ui, &po.purchase_order_number, TEXT));
+                row.col(|ui| {
+                    let supplier_name = monstock_core::services::purchase_order_service::supplier_name(conn, po.supplier_id);
+                    mono_value(ui, supplier_name.as_deref().unwrap_or("-"), TEXT_SEC);
+                });
+                row.col(|ui| amount_text(ui, &format!("{:.0}", po.total), TEXT));
+                row.col(|ui| {
+                    let (sc, sl) = if po.status == "Received" { (GOOD, i18n::t("received", lang)) } else { (WARN, i18n::t("draft", lang)) };
+                    tag(ui, sl, sc, is_dark);
+                });
+                row.col(|ui| { ui.label(egui::RichText::new(&po.created_at).size(12.0).color(TEXT_SEC)); });
+                row.col(|ui| {
+                    if po.status == "Draft" {
+                        let r = btn_custom(ui,
+                            egui::Button::new(egui::RichText::new(i18n::t("received", lang)).size(11.0).color(TEXT))
+                                .fill(GOOD).corner_radius(4).min_size(egui::vec2(60.0, 22.0))
+                        );
+                        if r.clicked() { state.receive(conn, po.id); }
+                    }
+                });
+                row.col(|ui| {
+                    if components::delete_btn(ui, is_dark).clicked() { state.delete(conn, po.id); }
+                });
+            });
         state.sort = s;
         pagination_ui(ui, &mut state.pagination, is_dark);
     });
@@ -173,30 +187,28 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
     if state.show_modal {
         let title = format!("{} {}", i18n::t("add", lang), i18n::t("purchase_orders", lang));
         let err = state.form_error.clone();
-        components::modal_window(ui.ctx(), &title, [480.0, 400.0], |ui| {
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(i18n::t("supplier", lang)).size(13.0).color(text_color(is_dark)).strong());
-                ui.add_space(8.0);
-                let suppliers = monstock_core::services::supplier_service::find_all(conn).unwrap_or_default();
-                let cur = state.form_supplier_id.and_then(|id| suppliers.iter().find(|s| s.id == id)).map(|s| s.name.clone()).unwrap_or_else(|| "-".to_string());
-                egui::ComboBox::from_id_salt("supplier_combo").selected_text(&cur).width(200.0).show_ui(ui, |ui| {
-                    ui.selectable_value(&mut state.form_supplier_id, None, "-");
-                    for s in &suppliers { let id = Some(s.id); ui.selectable_value(&mut state.form_supplier_id, id, &s.name); }
+        components::modal_window(ui.ctx(), &title, [480.0, 420.0], |ui| {
+            card(ui, is_dark, |ui| {
+                ui.set_min_width(ui.available_width());
+                form_field(ui, i18n::t("supplier", lang), is_dark, |ui| {
+                    let suppliers = monstock_core::services::supplier_service::find_all(conn).unwrap_or_default();
+                    let cur = state.form_supplier_id.and_then(|id| suppliers.iter().find(|s| s.id == id)).map(|s| s.name.clone()).unwrap_or_else(|| "-".to_string());
+                    egui::ComboBox::from_id_salt("supplier_combo").selected_text(&cur).width(ui.available_width().max(100.0)).show_ui(ui, |ui| {
+                        ui.selectable_value(&mut state.form_supplier_id, None, "-");
+                        for s in &suppliers { let id = Some(s.id); ui.selectable_value(&mut state.form_supplier_id, id, &s.name); }
+                    });
                 });
-            });
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(i18n::t("notes", lang)).size(13.0).color(text_color(is_dark)).strong());
-                ui.add_space(8.0);
-                ui.add(egui::TextEdit::singleline(&mut state.form_notes).desired_width(250.0).hint_text(i18n::t("notes", lang)));
+                ui.add_space(4.0);
+                form_field(ui, i18n::t("notes", lang), is_dark, |ui| {
+                    ui.add(egui::TextEdit::singleline(&mut state.form_notes).desired_width(250.0).hint_text(i18n::t("notes", lang)));
+                });
             });
             ui.add_space(12.0);
             ui.separator();
             ui.add_space(4.0);
             ui.label(egui::RichText::new(i18n::t("entered_items", lang)).size(14.0).color(text_color(is_dark)).strong());
 
-            egui::ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
+            egui::ScrollArea::vertical().id_salt("po_items").max_height(160.0).show(ui, |ui| {
                 egui::Grid::new("po_items_grid").striped(true).min_col_width(60.0).show(ui, |ui| {
                     table_header(ui, i18n::t("product", lang));
                     table_header(ui, i18n::t("quantity", lang));

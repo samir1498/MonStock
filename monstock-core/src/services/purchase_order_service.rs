@@ -1,24 +1,25 @@
 use diesel::prelude::*;
 use diesel::SqliteConnection;
+use serde::{Deserialize, Serialize};
 use crate::models::*;
 use crate::repos::purchase_order_repo;
 use crate::services::supplier_service;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PurchaseOrderInput {
     pub purchase_order_number: String,
     pub supplier_id: Option<i32>,
     pub notes: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PurchaseOrderItemInput {
     pub product_name: String,
     pub quantity: i32,
     pub unit_cost: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PurchaseOrderResult {
     pub order: PurchaseOrder,
     pub items: Vec<PurchaseOrderItem>,

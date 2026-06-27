@@ -1,9 +1,10 @@
 use diesel::prelude::*;
 use diesel::SqliteConnection;
+use serde::{Deserialize, Serialize};
 use crate::models::*;
 use crate::repos::transaction_repo;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SaleItemInput {
     pub product_id: i32,
     pub product_name: String,
@@ -12,7 +13,7 @@ pub struct SaleItemInput {
     pub cost_price: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SaleResult {
     pub transaction: Transaction,
     pub items: Vec<TransactionItem>,

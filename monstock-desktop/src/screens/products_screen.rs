@@ -1,7 +1,7 @@
 use egui;
 use crate::i18n::{self, Lang};
 use crate::style::*;
-use crate::components;
+use crate::components::{self, ColumnDef, ColumnSizing, DataTable};
 
 #[derive(Default)]
 pub struct ProductsState {
@@ -116,35 +116,51 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
         };
         let mut s = state.sort.clone();
         sort_products(&mut products, &s);
-        components::data_table(ui, "products_grid", &[
-            i18n::t("product", lang), i18n::t("barcode", lang), i18n::t("cost_price", lang),
-            i18n::t("selling_price", lang), i18n::t("stock", lang), i18n::t("margin", lang), "",
-        ], &products, error.as_deref(), Some(&mut s), |ui, p| {
-            ui.vertical(|ui| {
-                ui.add(egui::Label::new(
-                    egui::RichText::new(&p.name).size(12.5).color(text_color(is_dark)).strong()
-                ).extend());
-                ui.label(egui::RichText::new(format!("PRD-{:03}", p.id)).size(11.0).monospace().color(TEXT_DIM));
+        DataTable::new(vec![
+            ColumnDef::new(i18n::t("product", lang), ColumnSizing::Auto),
+            ColumnDef::new(i18n::t("barcode", lang), ColumnSizing::Auto),
+            ColumnDef::new(i18n::t("cost_price", lang), ColumnSizing::Exact(80.0)),
+            ColumnDef::new(i18n::t("selling_price", lang), ColumnSizing::Exact(80.0)),
+            ColumnDef::new(i18n::t("stock", lang), ColumnSizing::Remainder),
+            ColumnDef::new(i18n::t("margin", lang), ColumnSizing::Exact(100.0)),
+            ColumnDef::new("", ColumnSizing::Auto),
+        ], &products)
+            .error(error.as_deref())
+            .row_height(36.0)
+            .show(ui, Some(&mut s), |row, p| {
+                row.col(|ui| {
+                    ui.vertical(|ui| {
+                        ui.add(egui::Label::new(
+                            egui::RichText::new(&p.name).size(12.5).color(text_color(is_dark)).strong()
+                        ).extend());
+                        ui.label(egui::RichText::new(format!("PRD-{:03}", p.id)).size(11.0).monospace().color(TEXT_DIM));
+                    });
+                });
+                row.col(|ui| mono_value(ui, p.barcode.as_deref().unwrap_or("-"), TEXT_SEC));
+                row.col(|ui| mono_value(ui, &format!("{:.0}", p.cost_price), TEXT_SEC));
+                row.col(|ui| mono_value(ui, &format!("{:.0}", p.selling_price), TEXT));
+                row.col(|ui| {
+                    ui.horizontal(|ui| {
+                        stock_bar(ui, p.quantity_on_hand, 50);
+                        ui.add_space(4.0);
+                        mono_value(ui, &format!("{}", p.quantity_on_hand), TEXT);
+                    });
+                });
+                row.col(|ui| {
+                    let margin = p.margin_pct();
+                    mono_value(ui, &format!("{:.0}%", margin), if margin >= 30.0 { GOOD } else if margin >= 10.0 { WARN } else { BAD });
+                });
+                row.col(|ui| {
+                    ui.horizontal(|ui| {
+                        if btn(ui, egui::RichText::new(i18n::t("edit", lang)).size(11.0)).clicked() {
+                            state.open_edit(p.id, &p.name, &p.barcode, p.cost_price, p.selling_price);
+                        }
+                        if components::delete_btn(ui, is_dark).clicked() {
+                            state.delete(conn, p.id);
+                        }
+                    });
+                });
             });
-            mono_value(ui, p.barcode.as_deref().unwrap_or("-"), TEXT_SEC);
-            mono_value(ui, &format!("{:.0}", p.cost_price), TEXT_SEC);
-            mono_value(ui, &format!("{:.0}", p.selling_price), TEXT);
-            ui.horizontal(|ui| {
-                stock_bar(ui, p.quantity_on_hand, 50);
-                ui.add_space(4.0);
-                mono_value(ui, &format!("{}", p.quantity_on_hand), TEXT);
-            });
-            let margin = p.margin_pct();
-            mono_value(ui, &format!("{:.0}%", margin), if margin >= 30.0 { GOOD } else if margin >= 10.0 { WARN } else { BAD });
-            ui.horizontal(|ui| {
-                if btn(ui, egui::RichText::new(i18n::t("edit", lang)).size(11.0)).clicked() {
-                    state.open_edit(p.id, &p.name, &p.barcode, p.cost_price, p.selling_price);
-                }
-                if components::delete_btn(ui, is_dark).clicked() {
-                    state.delete(conn, p.id);
-                }
-            });
-        });
         state.sort = s;
         pagination_ui(ui, &mut state.pagination, is_dark);
     });
@@ -156,33 +172,24 @@ pub fn show(ui: &mut egui::Ui, conn: &mut diesel::SqliteConnection, lang: Lang, 
             format!("{} {}", i18n::t("add", lang), i18n::t("products", lang))
         };
         let err = state.form_error.clone();
-        components::modal_window(ui.ctx(), &title, [400.0, 320.0], |ui| {
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(i18n::t("name", lang)).size(13.0).color(text_color(is_dark)).strong());
-                ui.add_space(8.0);
-                ui.text_edit_singleline(&mut state.form_name);
+        components::modal_window(ui.ctx(), &title, [400.0, 340.0], |ui| {
+            card(ui, is_dark, |ui| {
+                ui.set_min_width(ui.available_width());
+                form_field(ui, i18n::t("name", lang), is_dark, |ui| { ui.text_edit_singleline(&mut state.form_name); });
+                ui.add_space(4.0);
+                form_field(ui, i18n::t("barcode", lang), is_dark, |ui| { ui.text_edit_singleline(&mut state.form_barcode); });
+                ui.add_space(4.0);
+                form_field(ui, i18n::t("cost_price", lang), is_dark, |ui| {
+                    ui.add(egui::TextEdit::singleline(&mut state.form_cost_price).desired_width(80.0));
+                    ui.label(" DA");
+                });
+                ui.add_space(4.0);
+                form_field(ui, i18n::t("selling_price", lang), is_dark, |ui| {
+                    ui.add(egui::TextEdit::singleline(&mut state.form_selling_price).desired_width(80.0));
+                    ui.label(" DA");
+                });
             });
             ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(i18n::t("barcode", lang)).size(13.0).color(text_color(is_dark)).strong());
-                ui.add_space(8.0);
-                ui.text_edit_singleline(&mut state.form_barcode);
-            });
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(i18n::t("cost_price", lang)).size(13.0).color(text_color(is_dark)).strong());
-                ui.add_space(8.0);
-                ui.add(egui::TextEdit::singleline(&mut state.form_cost_price).desired_width(80.0));
-                ui.label(" DA");
-            });
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(i18n::t("selling_price", lang)).size(13.0).color(text_color(is_dark)).strong());
-                ui.add_space(8.0);
-                ui.add(egui::TextEdit::singleline(&mut state.form_selling_price).desired_width(80.0));
-                ui.label(" DA");
-            });
             components::modal_actions(ui, lang, err.as_deref(), conn, state);
         });
     }
