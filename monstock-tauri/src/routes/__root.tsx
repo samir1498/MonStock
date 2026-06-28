@@ -1,4 +1,5 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { Sidebar } from "@/components/sidebar";
 import { TopBar } from "@/components/topbar";
 import { Button } from "@/components/ui";
@@ -39,7 +40,9 @@ function RootLayout() {
           }
         />
         <main className="flex-1 overflow-auto p-6 lg:p-7 max-w-7xl">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>

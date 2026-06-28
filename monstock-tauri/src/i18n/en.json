@@ -96,5 +96,13 @@
   "details": "Details",
   "out": "Out",
   "in_stock": "In Stock",
-  "low": "Low"
+  "low": "Low",
+  "expense_created": "Expense created",
+  "expense_deleted": "Expense deleted",
+  "supplier_created": "Supplier created",
+  "supplier_updated": "Supplier updated",
+  "supplier_deleted": "Supplier deleted",
+  "po_created": "Purchase order created",
+  "po_received": "Purchase order received",
+  "po_deleted": "Purchase order deleted"
 }
