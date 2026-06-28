@@ -5,6 +5,7 @@ import { listSuppliers, createSupplier, updateSupplier, deleteSupplier } from "@
 import { PageHeader, Card, Button, DataTable, Modal, FormField, Input } from "@/components/ui";
 import type { Column } from "@/components/ui";
 import { useTranslation } from "@/i18n";
+import { useToast } from "@/components/toast";
 import type { Supplier } from "@/lib/api";
 
 export const Route = createFileRoute("/suppliers")({
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/suppliers")({
 
 function SuppliersPage() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -27,17 +29,20 @@ function SuppliersPage() {
 
   const createMutation = useMutation({
     mutationFn: () => createSupplier({ name: formName, phone: formPhone || null, notes: formNotes || null }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["suppliers"] }); closeModal(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["suppliers"] }); closeModal(); toast(t("supplier_created"), "success"); },
+    onError: (err) => toast(String(err), "error"),
   });
 
   const updateMutation = useMutation({
     mutationFn: () => updateSupplier(editingId!, { name: formName, phone: formPhone || null, notes: formNotes || null }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["suppliers"] }); closeModal(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["suppliers"] }); closeModal(); toast(t("supplier_updated"), "success"); },
+    onError: (err) => toast(String(err), "error"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteSupplier(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["suppliers"] }); toast(t("supplier_deleted"), "success"); },
+    onError: (err) => toast(String(err), "error"),
   });
 
   const openAdd = () => {

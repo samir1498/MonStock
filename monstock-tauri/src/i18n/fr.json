@@ -96,5 +96,13 @@
   "details": "Détails",
   "out": "Rupture",
   "in_stock": "En stock",
-  "low": "Faible"
+  "low": "Faible",
+  "expense_created": "Dépense créée",
+  "expense_deleted": "Dépense supprimée",
+  "supplier_created": "Fournisseur créé",
+  "supplier_updated": "Fournisseur modifié",
+  "supplier_deleted": "Fournisseur supprimé",
+  "po_created": "Bon de commande créé",
+  "po_received": "Bon de commande reçu",
+  "po_deleted": "Bon de commande supprimé"
 }

@@ -6,6 +6,7 @@ import { fmtDA, today } from "@/lib/utils";
 import { PageHeader, Card, Button, Tag, DataTable, Pagination, Modal, FormField, Input } from "@/components/ui";
 import type { Column } from "@/components/ui";
 import { useTranslation } from "@/i18n";
+import { useToast } from "@/components/toast";
 import type { Expense } from "@/lib/api";
 
 export const Route = createFileRoute("/expenses")({
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/expenses")({
 
 function ExpensesPage() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const qc = useQueryClient();
   const [startDate, setStartDate] = useState(today().slice(0, 7) + "-01");
   const [endDate, setEndDate] = useState(today());
@@ -45,12 +47,18 @@ function ExpensesPage() {
       qc.invalidateQueries({ queryKey: ["expenses"] });
       setShowModal(false);
       resetForm();
+      toast(t("expense_created"), "success");
     },
+    onError: (err) => toast(String(err), "error"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteExpense(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["expenses"] });
+      toast(t("expense_deleted"), "success");
+    },
+    onError: (err) => toast(String(err), "error"),
   });
 
   const resetForm = () => {

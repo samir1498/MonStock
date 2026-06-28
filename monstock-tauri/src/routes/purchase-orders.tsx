@@ -6,6 +6,7 @@ import { fmtDA } from "@/lib/utils";
 import { PageHeader, Card, Button, Tag, DataTable, Pagination, Modal, FormField, Input } from "@/components/ui";
 import type { Column } from "@/components/ui";
 import { useTranslation } from "@/i18n";
+import { useToast } from "@/components/toast";
 import type { PurchaseOrder } from "@/lib/api";
 
 export const Route = createFileRoute("/purchase-orders")({
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/purchase-orders")({
 
 function PurchaseOrdersPage() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
@@ -27,12 +29,20 @@ function PurchaseOrdersPage() {
 
   const receiveMutation = useMutation({
     mutationFn: (id: number) => receivePurchaseOrder(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["purchase-orders"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+      toast(t("po_received"), "success");
+    },
+    onError: (err) => toast(String(err), "error"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deletePurchaseOrder(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["purchase-orders"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+      toast(t("po_deleted"), "success");
+    },
+    onError: (err) => toast(String(err), "error"),
   });
 
   const createMutation = useMutation({
@@ -49,7 +59,9 @@ function PurchaseOrdersPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchase-orders"] });
       setShowModal(false);
+      toast(t("po_created"), "success");
     },
+    onError: (err) => toast(String(err), "error"),
   });
 
   const columns: Column<PurchaseOrder>[] = [
