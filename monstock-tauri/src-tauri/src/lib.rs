@@ -42,6 +42,9 @@ pub fn run() {
             commands::list_suppliers,
             commands::create_supplier,
             commands::update_supplier,
+            commands::delete_supplier,
+            commands::delete_expense,
+            commands::delete_purchase_order,
             // Expense Categories
             commands::list_expense_categories,
             // Backup

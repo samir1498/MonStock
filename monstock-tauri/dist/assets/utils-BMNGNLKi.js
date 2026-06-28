@@ -1,0 +1,1 @@
+function r(t){return new Intl.NumberFormat("fr-DZ",{style:"decimal",minimumFractionDigits:2,maximumFractionDigits:2}).format(t)+" DA"}function i(){return new Date().toISOString().slice(0,10)}function a(t,n){return t<=0?0:(n-t)/t*100}export{a as n,i as r,r as t};

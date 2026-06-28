@@ -208,6 +208,15 @@ export const createSupplier = (input: SupplierInput) =>
 export const updateSupplier = (id: number, input: SupplierInput) =>
   cmd<void>("update_supplier", { id, input });
 
+export const deleteSupplier = (id: number) =>
+  cmd<boolean>("delete_supplier", { id });
+
+export const deleteExpense = (id: number) =>
+  cmd<boolean>("delete_expense", { id });
+
+export const deletePurchaseOrder = (id: number) =>
+  cmd<boolean>("delete_purchase_order", { id });
+
 // Info
 export const getDbInfo = () =>
   cmd<DbInfo>("get_db_info");
