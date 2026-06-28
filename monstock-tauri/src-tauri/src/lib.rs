@@ -17,6 +17,7 @@ pub fn run() {
             app.manage(commands::DbState { db_path });
             Ok(())
         })
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::get_db_path,
             // Products
