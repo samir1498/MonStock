@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.2.0 — Tauri v2 frontend (all screens, tests, error handling)
+
+### Features
+- All 7 Tauri screens implemented: Dashboard, Products, Purchase Orders, Suppliers, Barcodes, Expenses, End of Day
+- CRUD modals for expenses, suppliers, purchase orders (with line items)
+- Dashboard with stats cards, low-stock alerts, sales chart, recent transactions
+- Products page with DataTable, StockBar, margin tags, status indicators
+- Purchase order receive workflow — marks as Received, auto-updates stock
+- Barcode screen for inline barcode editing
+- End of Day screen with daily stats + transaction list
+- ErrorBoundary component catching render errors with fallback UI
+- Toast notification system (success/error, auto-dismiss, click-to-dismiss)
+- All mutations now show success/error toasts and handle errors gracefully
+- FR/EN translations for all screens and toast messages
+
+### Tests
+- Vitest + React Testing Library setup with 67 tests
+- Component tests: Card, Button, Tag, Modal, Pagination, DataTable, FormField
+- Error handling tests: ErrorBoundary render/catch/fallback, Toast show/dismiss/auto-dismiss
+- Edge case tests: DataTable loading/null/large, StockBar 0/negative/clamp, Pagination partial pages
+
+### Tech
+- Tauri v2 + Vite 8 + React 19 + TanStack Router v1 + Tailwind v4 + TypeScript 6
+- `tauri-plugin-updater` for auto-update support
+- Separate versioning: Tauri at `0.2.0` (tagged `tauri-v*`), egui at `0.3.0` (tagged `desktop-v*`)
+- CI runs Rust checks + frontend build + tests on all 3 OS
+- Release workflows: `release-tauri.yml` (deb/AppImage/rpm/msi/dmg) and `release-desktop.yml` (binary)
+
 ## 0.3.0 — egui_extras::Table migration (full-width DataTable)
 
 ### Features
