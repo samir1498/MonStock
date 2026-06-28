@@ -292,6 +292,24 @@ pub fn list_expense_categories(state: State<DbState>) -> Result<Vec<ExpenseCateg
     services::expense_category_service::find_all(&mut conn).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub fn delete_supplier(state: State<DbState>, id: i32) -> Result<bool, String> {
+    let mut conn = conn(&state);
+    services::supplier_service::delete(&mut conn, id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_expense(state: State<DbState>, id: i32) -> Result<bool, String> {
+    let mut conn = conn(&state);
+    services::expense_service::delete(&mut conn, id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_purchase_order(state: State<DbState>, id: i32) -> Result<bool, String> {
+    let mut conn = conn(&state);
+    services::purchase_order_service::delete(&mut conn, id).map_err(|e| e.to_string())
+}
+
 // ── DB Info ──
 
 #[tauri::command]

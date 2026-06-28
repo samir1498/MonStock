@@ -4,6 +4,9 @@ main
 *.db*
 *.db-shm
 *.db-wal
+node_modules/
+dist/
+.vite/
 /design-prompt.md
 /monstock_ui_v2.html
 /inventory_desktop.html

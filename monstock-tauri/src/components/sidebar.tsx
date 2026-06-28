@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { NAV_ITEMS } from "../lib/constants";
+import { useTranslation } from "@/i18n";
 
 interface SidebarProps {
   open: boolean;
@@ -7,8 +7,19 @@ interface SidebarProps {
   onNavigate: () => void;
 }
 
+const NAV_ITEMS = [
+  { path: "/", label: "dashboard", num: "01" },
+  { path: "/products", label: "products", num: "02" },
+  { path: "/purchase-orders", label: "purchase_orders", num: "03" },
+  { path: "/suppliers", label: "suppliers", num: "04" },
+  { path: "/barcodes", label: "barcodes", num: "05" },
+  { path: "/expenses", label: "expenses", num: "06" },
+  { path: "/end-of-day", label: "end_of_day", num: "07" },
+] as const;
+
 export function Sidebar({ open, onNavigate }: SidebarProps) {
   const location = useLocation();
+  const { t } = useTranslation();
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -28,7 +39,6 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
         borderRight: "1px solid var(--color-border)",
       }}
     >
-      {/* Logo */}
       <div
         className="px-6 py-7 pb-5"
         style={{ borderBottom: "1px solid var(--color-border)" }}
@@ -50,19 +60,18 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
               className="text-[15px] font-semibold tracking-tight"
               style={{ color: "var(--color-text)" }}
             >
-              MonStock
+              {t("app_name")}
             </div>
             <div
               className="text-[11px] mt-0.5 font-normal"
               style={{ color: "var(--color-text-dim)" }}
             >
-              Inventory & Sales
+              {t("app_subtitle")}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2.5 py-3">
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.path);
@@ -74,10 +83,7 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
               className={`
                 flex items-center gap-2.5 px-3 py-[7px] rounded-sm text-[12.5px] font-[450]
                 transition-all duration-150 mb-px relative
-                ${active
-                  ? "text-text bg-raised"
-                  : "text-text-sec hover:text-text hover:bg-raised"
-                }
+                ${active ? "text-text bg-raised" : "text-text-sec hover:text-text hover:bg-raised"}
               `}
               style={{
                 border: active ? "1px solid var(--color-border-strong)" : "1px solid transparent",
@@ -95,13 +101,12 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
               >
                 {item.num}
               </span>
-              <span>{item.label}</span>
+              <span>{t(item.label)}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer */}
       <div
         className="px-[18px] py-3.5 flex items-center gap-2 text-[11px]"
         style={{
