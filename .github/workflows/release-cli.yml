@@ -78,20 +78,25 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: monstock-cli-*
-          merge-multiple: true
+          path: ./binaries
 
-      - name: Prepare release files
+      - name: Collect binaries
         run: |
-          chmod +x monstock-cli-linux monstock-cli-linux-xtask monstock-cli-linux-seed monstock-cli-macos monstock-cli-macos-xtask monstock-cli-macos-seed 2>/dev/null || true
+          for dir in ./binaries/*/; do
+            artifact=$(basename "$dir")
+            find "$dir" -type f -exec cp {} "./${artifact}" \;
+          done
+          chmod +x monstock-cli-linux* monstock-cli-macos* 2>/dev/null || true
+          ls -la
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            monstock-cli-linux*
-            monstock-cli-windows.exe*
-            monstock-cli-macos*
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            monstock-cli-linux* \
+            monstock-cli-windows.exe* \
+            monstock-cli-macos* \
+            --repo ${{ github.repository }} \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
