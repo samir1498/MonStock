@@ -1,3 +1,4 @@
 [alias]
 wrun = "watch -c -x run -w monstock-desktop/src/ -w monstock-core/src/"
 wcheck = "watch -c -x check -w monstock-desktop/src/ -w monstock-core/src/"
+xtask = "run --package monstock-cli --bin xtask --"

@@ -4,6 +4,14 @@ version.workspace = true
 edition.workspace = true
 
 [[bin]]
+name = "monstock"
+path = "src/main.rs"
+
+[[bin]]
+name = "xtask"
+path = "src/bin/xtask.rs"
+
+[[bin]]
 name = "seed"
 path = "src/bin/seed.rs"
 
@@ -14,3 +22,10 @@ monstock-import = { path = "../monstock-import" }
 diesel = { workspace = true, features = ["sqlite"] }
 chrono = { workspace = true }
 dirs = "6.0"
+clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+toml = "0.8"

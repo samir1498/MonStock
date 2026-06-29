@@ -1,0 +1,97 @@
+name: Release CLI
+
+on:
+  push:
+    tags: ["cli-v*"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: monstock-cli-linux
+            ext: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: monstock-cli-windows.exe
+            ext: .exe
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: monstock-cli-macos
+            ext: ""
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Linux deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y
+          libxcb1-dev
+          libgtk-3-dev
+          libxkbcommon-dev
+          libwayland-dev
+          libudev-dev
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "monstock-cli -> target"
+
+      - name: Build release binaries
+        run: cargo build --release -p monstock-cli
+
+      - name: Upload monstock binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/release/monstock${{ matrix.ext }}
+
+      - name: Upload xtask binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}-xtask
+          path: target/release/xtask${{ matrix.ext }}
+
+      - name: Upload seed binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}-seed
+          path: target/release/seed${{ matrix.ext }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: monstock-cli-*
+          merge-multiple: true
+
+      - name: Prepare release files
+        run: |
+          chmod +x monstock-cli-linux monstock-cli-linux-xtask monstock-cli-linux-seed monstock-cli-macos monstock-cli-macos-xtask monstock-cli-macos-seed 2>/dev/null || true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            monstock-cli-linux*
+            monstock-cli-windows.exe*
+            monstock-cli-macos*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
