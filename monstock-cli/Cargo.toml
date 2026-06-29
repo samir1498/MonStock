@@ -1,19 +1,11 @@
 [package]
 name = "monstock-cli"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 
 [[bin]]
 name = "monstock"
 path = "src/main.rs"
-
-[[bin]]
-name = "xtask"
-path = "src/bin/xtask.rs"
-
-[[bin]]
-name = "seed"
-path = "src/bin/seed.rs"
 
 [dependencies]
 monstock-core = { path = "../monstock-core" }
